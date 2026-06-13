@@ -87,6 +87,29 @@ canvas{display:block;}
 #gameover-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.94);z-index:32;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;}
 #gameover-overlay h1{font-size:clamp(2rem,6vw,4rem);font-weight:900;letter-spacing:8px;text-shadow:0 0 40px currentColor;}
 #gameover-scores{display:flex;flex-direction:column;gap:4px;align-items:center;}
+
+/* XP / Level HUD */
+#xp-wrap{position:absolute;bottom:72px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:3px;}
+#xp-level{font-size:0.7rem;font-weight:900;letter-spacing:3px;color:#ff0;text-shadow:0 0 10px #ff0;}
+#xp-bar-bg{width:180px;height:5px;background:#ffffff44;border-radius:3px;}
+#xp-bar{height:100%;width:0%;background:linear-gradient(90deg,#ff0,#f80);border-radius:3px;transition:width 0.4s;}
+
+/* Upgrade menu */
+#upgrade-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:38;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;}
+#upgrade-overlay h2{font-size:1.8rem;font-weight:900;letter-spacing:6px;color:#ff0;text-shadow:0 0 30px #ff0;}
+#upgrade-subtitle{font-size:0.7rem;letter-spacing:3px;color:#ff08;}
+#upgrade-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:620px;width:90%;}
+.upg-card{background:rgba(255,255,255,0.06);border:1px solid #fff2;border-radius:6px;padding:14px 10px;cursor:pointer;transition:all 0.15s;display:flex;flex-direction:column;align-items:center;gap:6px;}
+.upg-card:hover{background:rgba(255,255,255,0.14);border-color:#ff0;transform:scale(1.03);}
+.upg-card.maxed{opacity:0.3;cursor:not-allowed;pointer-events:none;}
+.upg-icon{font-size:1.8rem;}
+.upg-name{font-size:0.65rem;font-weight:900;letter-spacing:2px;color:#fff;text-align:center;}
+.upg-desc{font-size:0.55rem;letter-spacing:1px;color:#aaa;text-align:center;}
+.upg-lvl{font-size:0.6rem;letter-spacing:2px;color:#ff0;}
+.upg-tag{font-size:0.5rem;letter-spacing:2px;padding:2px 6px;border-radius:2px;margin-top:2px;}
+.upg-tag.gun{background:#0044aa44;color:#88aaff;}
+.upg-tag.skin{background:#44004444;color:#ff88ff;}
+.upg-tag.player{background:#00440044;color:#88ff88;}
 </style>
 </head>
 <body>
@@ -125,6 +148,7 @@ canvas{display:block;}
   <div id="reload-bar-wrap"><div id="reload-label">RELOADING</div><div id="reload-bg"><div id="reload-fill"></div></div></div>
   <div id="kills-wrap"><div id="kills-num">0/15</div><div id="kills-label">KILLS</div></div>
   <div id="players-wrap"><div id="players-num">1 ONLINE</div><div id="players-label">PLAYERS</div></div>
+  <div id="xp-wrap"><div id="xp-level">LVL 1</div><div id="xp-bar-bg"><div id="xp-bar"></div></div></div>
   <div id="killfeed"></div>
 </div>
 
@@ -142,6 +166,13 @@ canvas{display:block;}
     <line x1="46%" y1="50%" x2="54%" y2="50%" stroke="#0f0" stroke-width="2"/>
     <line x1="50%" y1="46%" x2="50%" y2="54%" stroke="#0f0" stroke-width="2"/>
   </svg>
+</div>
+
+<!-- Upgrade Menu -->
+<div id="upgrade-overlay">
+  <h2>⬆ LEVEL UP!</h2>
+  <p id="upgrade-subtitle">CHOOSE AN UPGRADE FOR YOUR ARSENAL</p>
+  <div id="upgrade-grid"></div>
 </div>
 
 <!-- Lobby -->
@@ -500,7 +531,8 @@ function connectLobby(){
     scoreData=scores;
     addKillfeed(killerName+' ✕ '+victimName);
     if(otherPlayers[victimId]) otherPlayers[victimId].group.visible=false;
-    if(killerId===myId){kills++;updateHUD();}
+    if(killerId===myId){kills++;gainXP(50);updateHUD();}
+    if(victimId===myId) gainXP(0);
     updateScoreboardData();
   });
 
@@ -800,10 +832,11 @@ const raycaster=new THREE.Raycaster();
 function tryShoot(){
   if(shootCooldown>0||reloading)return;
   const w=WEAPONS[currentWeaponIdx];
+  const ew=effWeapon(currentWeaponIdx);
   if(weaponAmmos[currentWeaponIdx]<=0){SFX.empty();return;}
   weaponAmmos[currentWeaponIdx]--;
   SFX[['pistol','shotgun','plasma','sniper','rocket'][currentWeaponIdx]]();
-  shootCooldown=w.fireRate;
+  shootCooldown=ew.fireRate;
   muzzleLight.intensity=w.isRocket?6:4;
   gunRecoil=w.recoil;
   crossEl.classList.add('spread');setTimeout(()=>crossEl.classList.remove('spread'),120);
@@ -835,7 +868,8 @@ function tryShoot(){
       const hits=sp2.intersectObjects(hitTargets.map(t=>t.mesh));
       if(hits.length&&socket){
         const ht=hitTargets.find(t=>t.mesh===hits[0].object);
-        const dmg=Math.round(w.damage*(ht.isHead?w.headshotMult:1));
+        const dmg=Math.round(ew.damage*(ht.isHead?ew.headshotMult:1));
+        if(ht.isHead) gainXP(25);
         socket.emit('shoot',{targetId:ht.id,damage:dmg,isHeadshot:ht.isHead,weapon:currentWeaponIdx});
       }
     }
@@ -857,7 +891,8 @@ function spawnParticles(pos,col,count=8,speed=4){
 // ── Reload / HUD ──────────────────────────────────────────────────────────────
 function startReload(){
   if(reloading)return;
-  if(weaponAmmos[currentWeaponIdx]===WEAPONS[currentWeaponIdx].maxAmmo)return;
+  const maxAmmo=effWeapon(currentWeaponIdx).maxAmmo;
+  if(weaponAmmos[currentWeaponIdx]>=maxAmmo)return;
   reloading=true;reloadProgress=0;SFX.reload();
   document.getElementById('reload-bar-wrap').style.display='flex';
 }
@@ -876,7 +911,12 @@ function updateHUD(){
 function startPvP(){
   document.getElementById('lobby-overlay').style.display='none';
   document.getElementById('death-overlay').style.display='none';
+  document.getElementById('upgrade-overlay').style.display='none';
   gameRunning=true;health=100;kills=0;
+  xp=0;level=1;upgradePoints=0;
+  WEAPONS.forEach((_,i)=>{wUpg[i]={damage:0,firerate:0,ammo:0,reload:0,spread:0,skin:0};});
+  pUpg.speed=0;pUpg.health=0;
+  updateXPBar();
   weaponAmmos=WEAPONS.map(w=>w.maxAmmo);
   currentWeaponIdx=0;reloading=false;reloadProgress=0;velY=0;
   const a=Math.random()*Math.PI*2,r=8+Math.random()*18;
@@ -910,16 +950,17 @@ renderer.setAnimationLoop(()=>{
 
   // Reload
   if(reloading){
-    reloadProgress+=dt/WEAPONS[currentWeaponIdx].reloadTime;
+    const ew2=effWeapon(currentWeaponIdx);
+    reloadProgress+=dt/ew2.reloadTime;
     document.getElementById('reload-fill').style.width=(reloadProgress*100)+'%';
     if(reloadProgress>=1){
-      weaponAmmos[currentWeaponIdx]=WEAPONS[currentWeaponIdx].maxAmmo;
+      weaponAmmos[currentWeaponIdx]=ew2.maxAmmo;
       reloading=false;document.getElementById('reload-bar-wrap').style.display='none';updateHUD();
     }
   }
 
   // Movement
-  const spd=7*dt;
+  const spd=7*(1+pUpg.speed*0.1)*dt;
   const fwd=new THREE.Vector3(-Math.sin(camYaw),0,-Math.cos(camYaw));
   const right=new THREE.Vector3(Math.cos(camYaw),0,-Math.sin(camYaw));
   const mv=new THREE.Vector3();
@@ -993,6 +1034,128 @@ renderer.setAnimationLoop(()=>{
 
   renderer.render(scene,camera);
 });
+
+// ── XP / Level / Upgrades ─────────────────────────────────────────────────────
+let xp=0, level=1, upgradePoints=0;
+const xpToNext = lvl => lvl * 150;
+
+// Per-weapon upgrade counters: damage, firerate, ammo, reload, spread, skin
+const wUpg = WEAPONS.map(()=>({damage:0,firerate:0,ammo:0,reload:0,spread:0,skin:0}));
+// Player upgrades
+const pUpg = {speed:0, health:0};
+
+const SKIN_COLORS=[
+  null,          // 0 = default (uses weapon's own color)
+  0xffd700,      // 1 = Gold
+  0xe0e8ff,      // 2 = Chrome
+  0x00ffff,      // 3 = Neon cyan
+  0xff44ff,      // 4 = Neon pink
+  0xff4400,      // 5 = Flame
+];
+const SKIN_NAMES=['DEFAULT','GOLD','CHROME','NEON CYAN','NEON PINK','FLAME'];
+
+function gainXP(amount){
+  if(!gameRunning) return;
+  xp+=amount;
+  while(xp>=xpToNext(level)){
+    xp-=xpToNext(level);
+    level++;
+    upgradePoints++;
+    updateXPBar();
+    showUpgradeMenu();
+    return;
+  }
+  updateXPBar();
+}
+
+function updateXPBar(){
+  const needed=xpToNext(level);
+  document.getElementById('xp-bar').style.width=(Math.min(xp/needed,1)*100)+'%';
+  document.getElementById('xp-level').textContent='LVL '+level;
+}
+
+// Returns effective weapon stats after upgrades
+function effWeapon(idx){
+  const w=WEAPONS[idx], u=wUpg[idx];
+  return {
+    damage:   w.damage   * (1+u.damage*0.15),
+    fireRate: w.fireRate * (1-u.firerate*0.12),
+    maxAmmo:  Math.round(w.maxAmmo * (1+u.ammo*0.2)),
+    reloadTime:w.reloadTime*(1-u.reload*0.15),
+    spread:   w.spread   * (1-u.spread*0.18),
+    headshotMult: w.headshotMult,
+    bulletColor: u.skin>0 ? SKIN_COLORS[u.skin] : w.bulletColor,
+  };
+}
+
+function showUpgradeMenu(){
+  gameRunning=false;
+  const ov=document.getElementById('upgrade-overlay');
+  document.getElementById('upgrade-subtitle').textContent=
+    'LEVEL '+level+' — CHOOSE AN UPGRADE  ('+upgradePoints+' POINT'+(upgradePoints>1?'S':'')+' AVAILABLE)';
+
+  const w=currentWeaponIdx;
+  const wn=WEAPONS[w].name;
+  const u=wUpg[w];
+
+  const upgrades=[
+    {icon:'🔥',name:'DAMAGE +15%',    desc:wn,       tag:'gun',   key:'damage',  src:'w', max:5},
+    {icon:'⚡',name:'FIRE RATE +12%', desc:wn,       tag:'gun',   key:'firerate',src:'w', max:4},
+    {icon:'📦',name:'AMMO +20%',      desc:wn,       tag:'gun',   key:'ammo',    src:'w', max:4},
+    {icon:'🔄',name:'RELOAD -15%',    desc:wn,       tag:'gun',   key:'reload',  src:'w', max:4},
+    {icon:'🎯',name:'ACCURACY +18%',  desc:wn,       tag:'gun',   key:'spread',  src:'w', max:4},
+    {icon:'🏃',name:'MOVE SPEED +10%',desc:'PLAYER', tag:'player',key:'speed',   src:'p', max:3},
+    {icon:'❤️',name:'MAX HEALTH +25', desc:'PLAYER', tag:'player',key:'health',  src:'p', max:2},
+    {icon:'🎨',name:'SKIN: '+SKIN_NAMES[Math.min(u.skin+1,SKIN_COLORS.length-1)],
+                                       desc:wn,       tag:'skin',  key:'skin',    src:'w', max:SKIN_COLORS.length-1},
+    {icon:'💛',name:'ALL GUNS BUFF',  desc:'+8% DMG ALL', tag:'gun', key:'_allDmg', src:'special', max:99},
+  ];
+
+  const grid=document.getElementById('upgrade-grid');
+  grid.innerHTML='';
+  upgrades.forEach(upg=>{
+    const cur = upg.src==='w' ? wUpg[w][upg.key]||0 : upg.src==='p' ? pUpg[upg.key]||0 : 0;
+    const maxed = cur>=upg.max;
+    const card=document.createElement('div');
+    card.className='upg-card'+(maxed?' maxed':'');
+    card.innerHTML=`<div class="upg-icon">${upg.icon}</div>
+      <div class="upg-name">${upg.name}</div>
+      <div class="upg-desc">${upg.desc}</div>
+      <div class="upg-lvl">${maxed?'MAXED':'LVL '+(cur)+' → '+(cur+1)}</div>
+      <span class="upg-tag ${upg.tag}">${upg.tag.toUpperCase()}</span>`;
+    if(!maxed) card.onclick=()=>applyUpgrade(upg);
+    grid.appendChild(card);
+  });
+  ov.style.display='flex';
+}
+
+function applyUpgrade(upg){
+  if(upgradePoints<=0) return;
+  upgradePoints--;
+
+  if(upg.src==='w'){
+    if(upg.key==='skin') wUpg[currentWeaponIdx].skin=Math.min(wUpg[currentWeaponIdx].skin+1,SKIN_COLORS.length-1);
+    else wUpg[currentWeaponIdx][upg.key]=(wUpg[currentWeaponIdx][upg.key]||0)+1;
+    // Rebuild gun so skin applies
+    buildGunMesh(currentWeaponIdx);
+    // Update ammo cap if ammo was upgraded
+    const newMax=effWeapon(currentWeaponIdx).maxAmmo;
+    if(weaponAmmos[currentWeaponIdx]<newMax) weaponAmmos[currentWeaponIdx]=newMax;
+  } else if(upg.src==='p'){
+    pUpg[upg.key]=(pUpg[upg.key]||0)+1;
+    if(upg.key==='health') health=Math.min(health+25,100+pUpg.health*25);
+  } else if(upg.key==='_allDmg'){
+    WEAPONS.forEach((_,i)=>wUpg[i].damage=(wUpg[i].damage||0)+0.5);
+  }
+
+  updateHUD();
+  if(upgradePoints>0){ showUpgradeMenu(); return; }
+  document.getElementById('upgrade-overlay').style.display='none';
+  gameRunning=true;
+}
+
+// Hook: gun mesh applies skin color to neon strips
+const _origBuildGun=buildGunMesh;
 
 // Enter name on Enter key
 document.getElementById('name-input').addEventListener('keydown',e=>{if(e.key==='Enter')connectLobby();});
