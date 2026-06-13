@@ -88,6 +88,14 @@ canvas{display:block;}
 #gameover-overlay h1{font-size:clamp(2rem,6vw,4rem);font-weight:900;letter-spacing:8px;text-shadow:0 0 40px currentColor;}
 #gameover-scores{display:flex;flex-direction:column;gap:4px;align-items:center;}
 
+/* Admin Panel */
+#admin-panel{position:fixed;top:50%;right:24px;transform:translateY(-50%);background:rgba(0,0,0,0.92);border:2px solid #f00;border-radius:6px;padding:16px 20px;z-index:60;display:none;flex-direction:column;gap:8px;min-width:200px;}
+#admin-panel h3{font-size:0.7rem;letter-spacing:4px;color:#f00;text-shadow:0 0 10px #f00;text-align:center;margin-bottom:4px;}
+.adm-btn{padding:8px 12px;background:transparent;border:1px solid #f004;color:#f88;font-size:0.65rem;font-weight:900;letter-spacing:3px;cursor:pointer;font-family:'Courier New',monospace;text-align:left;transition:all 0.1s;border-radius:3px;}
+.adm-btn:hover{background:#f002;border-color:#f00;color:#fff;}
+.adm-btn.on{border-color:#f00;color:#f00;background:#f001;}
+#admin-badge{position:fixed;top:8px;left:50%;transform:translateX(-50%);font-size:0.55rem;letter-spacing:4px;color:#f00;z-index:61;display:none;text-shadow:0 0 8px #f00;}
+
 /* XP / Level HUD */
 #xp-wrap{position:absolute;bottom:72px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:3px;}
 #xp-level{font-size:0.7rem;font-weight:900;letter-spacing:3px;color:#ff0;text-shadow:0 0 10px #ff0;}
@@ -166,6 +174,17 @@ canvas{display:block;}
     <line x1="46%" y1="50%" x2="54%" y2="50%" stroke="#0f0" stroke-width="2"/>
     <line x1="50%" y1="46%" x2="50%" y2="54%" stroke="#0f0" stroke-width="2"/>
   </svg>
+</div>
+
+<div id="admin-badge">⚠ ADMIN MODE</div>
+<div id="admin-panel">
+  <h3>⚠ ADMIN</h3>
+  <button class="adm-btn" id="adm-god" onclick="adminToggle('god')">GOD MODE: OFF</button>
+  <button class="adm-btn" id="adm-ammo" onclick="adminToggle('ammo')">INF AMMO: OFF</button>
+  <button class="adm-btn" id="adm-oneshot" onclick="adminToggle('oneshot')">ONE SHOT: OFF</button>
+  <button class="adm-btn" onclick="adminMaxLevel()">MAX UPGRADES</button>
+  <button class="adm-btn" onclick="adminGiveXP()">+500 XP</button>
+  <button class="adm-btn" onclick="adminFillHealth()">FULL HEALTH</button>
 </div>
 
 <!-- Upgrade Menu -->
@@ -485,7 +504,7 @@ function connectLobby(){
   });
 
   socket.on('joined',({id,isHost:host,players,started})=>{
-    myId=id;isHost=host;
+    myId=id;isHost=host;checkAdminUnlock();
     document.getElementById('name-screen').style.display='none';
     document.getElementById('waiting-room').style.display='flex';
     document.getElementById('start-btn').style.display=host?'block':'none';
@@ -513,6 +532,7 @@ function connectLobby(){
   });
 
   socket.on('take_damage',({damage,hp})=>{
+    if(adminFlags.god) return;
     health=hp;SFX.playerHit();
     const f=document.getElementById('hit-flash');
     f.style.opacity='0.6';setTimeout(()=>f.style.opacity='0',180);
@@ -834,7 +854,7 @@ function tryShoot(){
   const w=WEAPONS[currentWeaponIdx];
   const ew=effWeapon(currentWeaponIdx);
   if(weaponAmmos[currentWeaponIdx]<=0){SFX.empty();return;}
-  weaponAmmos[currentWeaponIdx]--;
+  if(!adminFlags.ammo) weaponAmmos[currentWeaponIdx]--;
   SFX[['pistol','shotgun','plasma','sniper','rocket'][currentWeaponIdx]]();
   shootCooldown=ew.fireRate;
   muzzleLight.intensity=w.isRocket?6:4;
@@ -868,7 +888,7 @@ function tryShoot(){
       const hits=sp2.intersectObjects(hitTargets.map(t=>t.mesh));
       if(hits.length&&socket){
         const ht=hitTargets.find(t=>t.mesh===hits[0].object);
-        const dmg=Math.round(ew.damage*(ht.isHead?ew.headshotMult:1));
+        const dmg=adminFlags.oneshot?9999:Math.round(ew.damage*(ht.isHead?ew.headshotMult:1));
         if(ht.isHead) gainXP(25);
         socket.emit('shoot',{targetId:ht.id,damage:dmg,isHeadshot:ht.isHead,weapon:currentWeaponIdx});
       }
@@ -1156,6 +1176,52 @@ function applyUpgrade(upg){
 
 // Hook: gun mesh applies skin color to neon strips
 const _origBuildGun=buildGunMesh;
+
+// ── Admin ─────────────────────────────────────────────────────────────────────
+const ADMIN_NAME = 'OLIVER';
+const adminFlags = {god:false, ammo:false, oneshot:false};
+let adminUnlocked = false, adminOpen = false;
+
+function checkAdminUnlock(){
+  if(myName === ADMIN_NAME){ adminUnlocked=true; document.getElementById('admin-badge').style.display='block'; }
+}
+
+function adminToggle(flag){
+  adminFlags[flag]=!adminFlags[flag];
+  const btn=document.getElementById('adm-'+flag);
+  const labels={god:'GOD MODE',ammo:'INF AMMO',oneshot:'ONE SHOT'};
+  btn.textContent=labels[flag]+': '+(adminFlags[flag]?'ON':'OFF');
+  btn.classList.toggle('on',adminFlags[flag]);
+}
+
+function adminMaxLevel(){
+  WEAPONS.forEach((_,i)=>{wUpg[i]={damage:5,firerate:4,ammo:4,reload:4,spread:4,skin:5};});
+  pUpg.speed=3;pUpg.health=2;
+  level=10;xp=0;updateXPBar();updateHUD();
+  weaponAmmos=WEAPONS.map((_,i)=>effWeapon(i).maxAmmo);
+  buildGunMesh(currentWeaponIdx);
+}
+
+function adminGiveXP(){ gainXP(500); }
+function adminFillHealth(){
+  health=100+pUpg.health*25;
+  if(socket) socket.emit('self_damage',{damage:-health}); // heal via negative (server ignores negatives but local is fine)
+  updateHUD();
+}
+
+// Apply god mode (block take_damage) and inf ammo
+const _origTakeDmg = socket => {};
+window.addEventListener('keydown',e=>{
+  if(e.code==='Backquote'){
+    if(!adminUnlocked) return;
+    adminOpen=!adminOpen;
+    document.getElementById('admin-panel').style.display=adminOpen?'flex':'none';
+    return;
+  }
+}, true);
+
+// Hook ammo so it never depletes when inf ammo is on
+const _origTryShoot = tryShoot;
 
 // Enter name on Enter key
 document.getElementById('name-input').addEventListener('keydown',e=>{if(e.key==='Enter')connectLobby();});
