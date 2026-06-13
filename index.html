@@ -156,6 +156,15 @@ canvas{display:block;}
 .adm-btn:hover{background:#f002;border-color:#f00;color:#fff;}
 .adm-btn.on{border-color:#f00;color:#f00;background:#f001;}
 #admin-badge{position:fixed;top:8px;left:50%;transform:translateX(-50%);font-size:0.55rem;letter-spacing:4px;color:#f00;z-index:61;display:none;text-shadow:0 0 8px #f00;}
+/* Admin secret weapon slot */
+.wslot.admin-slot{display:none;border-style:dashed;}
+.wslot.admin-slot.revealed{display:flex;animation:rainbowBorder 1s linear infinite;}
+@keyframes rainbowBorder{0%{border-color:#f00;box-shadow:0 0 12px #f00;}16%{border-color:#f80;box-shadow:0 0 12px #f80;}33%{border-color:#ff0;box-shadow:0 0 12px #ff0;}50%{border-color:#0f0;box-shadow:0 0 12px #0f0;}66%{border-color:#0ff;box-shadow:0 0 12px #0ff;}83%{border-color:#f0f;box-shadow:0 0 12px #f0f;}100%{border-color:#f00;box-shadow:0 0 12px #f00;}}
+.wslot.admin-slot.active{animation:rainbowBorderActive 0.5s linear infinite;}
+@keyframes rainbowBorderActive{0%{border-color:#f00;box-shadow:0 0 20px #f00,0 0 60px #f00,inset 0 0 20px #f00;}16%{border-color:#f80;box-shadow:0 0 20px #f80,0 0 60px #f80,inset 0 0 20px #f80;}33%{border-color:#ff0;box-shadow:0 0 20px #ff0,0 0 60px #ff0,inset 0 0 20px #ff0;}50%{border-color:#0f0;box-shadow:0 0 20px #0f0,0 0 60px #0f0,inset 0 0 20px #0f0;}66%{border-color:#0ff;box-shadow:0 0 20px #0ff,0 0 60px #0ff,inset 0 0 20px #0ff;}83%{border-color:#f0f;box-shadow:0 0 20px #f0f,0 0 60px #f0f,inset 0 0 20px #f0f;}100%{border-color:#f00;box-shadow:0 0 20px #f00,0 0 60px #f00,inset 0 0 20px #f00;}}
+#obliterator-crosshair{position:fixed;pointer-events:none;z-index:50;transform:translate(-50%,-50%);display:none;}
+.adm-btn.danger{border-color:#f008;color:#f44;}
+.adm-btn.danger:hover{background:#f002;border-color:#f00;color:#fff;}
 </style>
 </head>
 <body>
@@ -187,6 +196,7 @@ canvas{display:block;}
         <div class="wslot" id="ws5" style="color:#88ffff">⚡</div>
         <div class="wslot" id="ws6" style="color:#ff6600">🔥</div>
         <div class="wslot" id="ws7" style="color:#aaffaa">💣</div>
+        <div class="wslot admin-slot" id="ws8" style="color:#fff">☠</div>
       </div>
     </div>
     <div id="ammo-wrap">
@@ -235,6 +245,27 @@ canvas{display:block;}
   <button class="adm-btn" onclick="adminMaxLevel()">MAX UPGRADES</button>
   <button class="adm-btn" onclick="adminGiveXP()">+500 XP</button>
   <button class="adm-btn" onclick="adminFillHealth()">FULL HEALTH</button>
+  <hr style="border-color:#f002;margin:4px 0;">
+  <button class="adm-btn" onclick="equipObliterator()" style="border-color:#f0f4;color:#f0f;">☠ THE OBLITERATOR</button>
+  <button class="adm-btn danger" onclick="adminSnap()">✦ SNAP — KILL ALL ✦</button>
+</div>
+
+<div id="obliterator-crosshair">
+  <svg width="60" height="60" viewBox="0 0 60 60">
+    <circle cx="30" cy="30" r="26" fill="none" stroke="url(#rg)" stroke-width="1.5" stroke-dasharray="4 3"/>
+    <circle cx="30" cy="30" r="16" fill="none" stroke="url(#rg)" stroke-width="1"/>
+    <line x1="30" y1="0" x2="30" y2="12" stroke="#fff" stroke-width="1.5"/>
+    <line x1="30" y1="48" x2="30" y2="60" stroke="#fff" stroke-width="1.5"/>
+    <line x1="0" y1="30" x2="12" y2="30" stroke="#fff" stroke-width="1.5"/>
+    <line x1="48" y1="30" x2="60" y2="30" stroke="#fff" stroke-width="1.5"/>
+    <circle cx="30" cy="30" r="2.5" fill="#fff"/>
+    <defs>
+      <linearGradient id="rg" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#f00"><animate attributeName="stop-color" values="#f00;#ff0;#0f0;#0ff;#f0f;#f00" dur="1s" repeatCount="indefinite"/></stop>
+        <stop offset="100%" stop-color="#0ff"><animate attributeName="stop-color" values="#0ff;#f0f;#f00;#ff0;#0f0;#0ff" dur="1s" repeatCount="indefinite"/></stop>
+      </linearGradient>
+    </defs>
+  </svg>
 </div>
 
 <!-- Upgrade menu -->
@@ -429,6 +460,23 @@ const WEAPONS=[
       const rim=new THREE.Mesh(new THREE.TorusGeometry(0.055,0.008,6,10),new THREE.MeshBasicMaterial({color:nc}));rim.position.set(0,0.02,-0.57);g.add(rim);
       const gl=new THREE.PointLight(nc,0.5,1.5);gl.position.set(0,0,-0.6);g.add(gl);
     }
+  },
+  // ── THE OBLITERATOR (admin only, index 8) ───────────────────────────────────
+  {name:'THE OBLITERATOR',icon:'☠',color:'#ffffff',ammo:Infinity,maxAmmo:Infinity,reloadTime:0,fireRate:0.22,auto:true,damage:9999,headshotMult:1,spread:0,bulletSpeed:999,bulletColor:0xffffff,bulletSize:0.05,bulletCount:1,recoil:0.05,isObliterator:true,adminOnly:true,
+    makeGun(g){
+      const body=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.1,0.55),new THREE.MeshLambertMaterial({color:0xffd700,emissive:0x886600,emissiveIntensity:0.6}));g.add(body);
+      const ringColors=[0xff0000,0xff8800,0xffff00,0x00ff00,0x00ffff,0xff00ff];
+      g._rings=[];
+      for(let i=0;i<6;i++){
+        const ring=new THREE.Mesh(new THREE.TorusGeometry(0.1+i*0.013,0.007,4,16),new THREE.MeshBasicMaterial({color:ringColors[i]}));
+        ring.position.z=(i-2.5)*0.072;ring.rotation.x=Math.PI/2;g.add(ring);
+        ring.userData.spinAxis=i%2===0?'x':'y';ring.userData.spinSpeed=(i+1)*1.8;g._rings.push(ring);
+      }
+      const barrel=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.04,0.52,6),new THREE.MeshLambertMaterial({color:0xffffff,emissive:0xffffff,emissiveIntensity:1}));barrel.rotation.x=Math.PI/2;barrel.position.set(0,0.01,-0.36);g.add(barrel);
+      const tip=new THREE.Mesh(new THREE.SphereGeometry(0.048,8,8),new THREE.MeshBasicMaterial({color:0xffffff}));tip.position.set(0,0.01,-0.63);g.add(tip);
+      const gl=new THREE.PointLight(0xffffff,3,4);gl.position.set(0,0,-0.65);g.add(gl);g._coreLight=gl;
+      [-0.06,0.06].forEach(x=>{const fin=new THREE.Mesh(new THREE.BoxGeometry(0.01,0.18,0.55),new THREE.MeshBasicMaterial({color:0xffd700}));fin.position.set(x,0,0);g.add(fin);});
+    }
   }
 ];
 
@@ -589,6 +637,31 @@ function doPrestige(){
   gameRunning=true;updateXPBar();updateHUD();
   showBanner('✦ PRESTIGE '+prestige+' ✦');
   if(socket) socket.emit('prestige');
+}
+
+function equipObliterator(){
+  if(!adminUnlocked||!gameRunning) return;
+  document.getElementById('ws8').classList.add('revealed');
+  switchWeapon(8);
+  document.getElementById('obliterator-crosshair').style.display='block';
+  document.getElementById('crosshair').style.display='none';
+  showBanner('☠ THE OBLITERATOR ☠','#fff');
+  playTone(80,'sawtooth',0.8,0.5);setTimeout(()=>playTone(160,'square',0.6,0.4),300);setTimeout(()=>playTone(320,'sine',0.5,0.35),600);
+}
+
+function adminSnap(){
+  if(!adminUnlocked||!gameRunning) return;
+  const targets=Object.values(otherPlayers).filter(op=>op.group.visible);
+  if(!targets.length){showBanner('NO TARGETS','#f00');return;}
+  // visual flash
+  const f=document.getElementById('explosion-flash');f.style.background='rgba(255,255,255,0.95)';f.style.opacity='1';setTimeout(()=>{f.style.opacity='0';setTimeout(()=>f.style.background='rgba(255,140,0,0.4)',400);},200);
+  // hit every enemy
+  targets.forEach(op=>{
+    spawnParticles(op.group.position.clone().add(new THREE.Vector3(0,1,0)),0xffffff,30,10);
+    if(socket) socket.emit('shoot',{targetId:Object.entries(otherPlayers).find(([,v])=>v===op)[0],damage:9999,isHeadshot:false,weapon:8});
+  });
+  playTone(55,'sawtooth',1.2,0.6);setTimeout(()=>playTone(110,'square',0.8,0.5),200);setTimeout(()=>playTone(220,'sine',0.6,0.4),500);
+  showBanner('✦ SNAP ✦','#fff');
 }
 
 function adminToggle(f){
@@ -950,7 +1023,7 @@ window.addEventListener('keydown',e=>{
   if(e.code==='KeyR'&&!reloading&&weaponAmmos[currentWeaponIdx]<effWeapon(currentWeaponIdx).maxAmmo) startReload();
   if(e.code==='Space') tryShoot();
   if(e.code==='KeyG') throwGrenade();
-  ['Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','Digit7','Digit8'].forEach((c,i)=>{if(e.code===c)switchWeapon(i);});
+  ['Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','Digit7','Digit8','Digit9'].forEach((c,i)=>{if(e.code===c){if(i===8&&!adminUnlocked)return;switchWeapon(i);}});
   e.preventDefault();
 });
 window.addEventListener('keyup',e=>{keys[e.code]=false;if(e.code==='Tab') document.getElementById('scoreboard').style.display='none';});
@@ -966,10 +1039,19 @@ function setScope(on){
 }
 function switchWeapon(idx){
   if(idx===currentWeaponIdx) return;
+  if(WEAPONS[idx]?.adminOnly&&!adminUnlocked) return;
   setScope(false);currentWeaponIdx=idx;reloading=false;reloadProgress=0;
   document.getElementById('reload-bar-wrap').style.display='none';buildGunMesh(idx);updateHUD();
-  document.querySelectorAll('.wslot').forEach((el,i)=>{el.classList.toggle('active',i===idx);el.style.color=WEAPONS[i].color;});
-  document.getElementById('weapon-name').textContent=WEAPONS[idx].name;document.getElementById('weapon-name').style.color=WEAPONS[idx].color;
+  const isObl=WEAPONS[idx]?.isObliterator;
+  document.getElementById('obliterator-crosshair').style.display=isObl?'block':'none';
+  document.getElementById('crosshair').style.display=isObl?'none':'block';
+  if(isObl) document.getElementById('ws8').classList.add('revealed');
+  document.querySelectorAll('.wslot').forEach((el,i)=>{
+    if(i===8){el.classList.toggle('active',i===idx);return;}
+    el.classList.toggle('active',i===idx);el.style.color=WEAPONS[i]?.color||'#fff';
+  });
+  document.getElementById('weapon-name').textContent=WEAPONS[idx].name;
+  document.getElementById('weapon-name').style.color=WEAPONS[idx].color;
 }
 
 // ── Bullets ───────────────────────────────────────────────────────────────────
@@ -1028,6 +1110,40 @@ function tryShoot(){
   const w=WEAPONS[currentWeaponIdx],ew=effWeapon(currentWeaponIdx);
   if(weaponAmmos[currentWeaponIdx]<=0){SFX.empty();return;}
   if(!adminFlags.ammo) weaponAmmos[currentWeaponIdx]--;
+
+  // OBLITERATOR: rainbow instant-kill beam hitting all enemies in sight
+  if(w.isObliterator){
+    shootCooldown=w.fireRate;gunRecoil=w.recoil;
+    const nx=(crossX/innerWidth)*2-1,ny=-(crossY/innerHeight)*2+1;
+    raycaster.setFromCamera({x:nx,y:ny},camera);
+    const dir=raycaster.ray.direction.clone().normalize();
+    const muzzle=new THREE.Vector3(0.22,-0.14,-0.76);camera.localToWorld(muzzle);
+    // Rainbow beam — changes color each shot
+    const rainbowCols=[0xff0000,0xff8800,0xffff00,0x00ff88,0x00ffff,0xff00ff,0xffffff];
+    const bc=rainbowCols[Math.floor(Date.now()/120)%rainbowCols.length];
+    const pts=[muzzle.clone(),muzzle.clone().addScaledVector(dir,80)];
+    const geo=new THREE.BufferGeometry().setFromPoints(pts);
+    const line=new THREE.Line(geo,new THREE.LineBasicMaterial({color:bc,transparent:true,opacity:1,linewidth:3}));
+    scene.add(line);railgunBeams.push({line,life:0.25});
+    const gl2=new THREE.PointLight(bc,10,15);gl2.position.copy(muzzle);scene.add(gl2);setTimeout(()=>scene.remove(gl2),80);
+    spawnParticles(muzzle,bc,12,6);
+    // Hit check
+    const hitTargets=[];
+    for(const [pid,op] of Object.entries(otherPlayers)){if(!op.group.visible)continue;hitTargets.push({mesh:op.body,id:pid,isHead:false},{mesh:op.head,id:pid,isHead:true});}
+    const rg2=new THREE.Raycaster();rg2.set(raycaster.ray.origin,dir);
+    const hits=rg2.intersectObjects(hitTargets.map(t=>t.mesh));
+    if(hits.length&&socket){
+      const ht=hitTargets.find(t=>t.mesh===hits[0].object);
+      socket.emit('shoot',{targetId:ht.id,damage:9999,isHeadshot:false,weapon:8});
+      const op=otherPlayers[ht.id];if(op){spawnParticles(op.group.position.clone().add(new THREE.Vector3(0,1,0)),bc,25,8);spawnDmgNumber(op.group.position.clone().add(new THREE.Vector3(0,1.8,0)),'☠',false);}
+    }
+    if(socket) socket.emit('railgun_beam',{from:{x:muzzle.x,y:muzzle.y,z:muzzle.z},dir:{x:dir.x,y:dir.y,z:dir.z},len:80});
+    // Muzzle flash + crosshair shake
+    document.getElementById('obliterator-crosshair').style.transform=`translate(-50%,-50%) scale(${1.3+Math.random()*0.3}) rotate(${Math.random()*30-15}deg)`;
+    setTimeout(()=>document.getElementById('obliterator-crosshair').style.transform='translate(-50%,-50%)',100);
+    playTone(200+Math.random()*400,'sawtooth',0.12,0.4);playTone(100+Math.random()*200,'square',0.08,0.3,500);
+    return;
+  }
 
   // Mine: place on ground instead of firing a bullet
   if(w.isMine){shootCooldown=ew.fireRate;gunRecoil=w.recoil;placeMine();updateHUD();if(weaponAmmos[currentWeaponIdx]<=0)startReload();return;}
@@ -1128,7 +1244,7 @@ function updateHUD(){
   const w=WEAPONS[currentWeaponIdx];
   document.getElementById('health-bar').style.width=health+'%';
   document.getElementById('health-bar').style.background=health>50?'linear-gradient(90deg,#0f0,#0ff)':health>25?'linear-gradient(90deg,#ff0,#f80)':'linear-gradient(90deg,#f00,#f80)';
-  document.getElementById('ammo-num').textContent=weaponAmmos[currentWeaponIdx];
+  document.getElementById('ammo-num').textContent=WEAPONS[currentWeaponIdx]?.isObliterator?'∞':weaponAmmos[currentWeaponIdx];
   document.getElementById('ammo-num').style.color=w.color;
   document.getElementById('kills-num').textContent=kills+'/'+KILL_LIMIT;
   updatePlayerCount();updateTeamScore();
@@ -1218,6 +1334,17 @@ renderer.setAnimationLoop(()=>{
   // Position sync
   const now=Date.now();
   if(socket&&now-lastPosSend>50){lastPosSend=now;socket.emit('position',{pos:{x:camera.position.x,y:camera.position.y,z:camera.position.z},yaw:camYaw,pitch:camPitch,weapon:currentWeaponIdx});}
+
+  // Animate OBLITERATOR rings + update obliterator crosshair position
+  if(currentGunMesh?._rings){
+    currentGunMesh._rings.forEach(r=>{
+      if(r.userData.spinAxis==='x') r.rotation.x+=dt*r.userData.spinSpeed;
+      else r.rotation.y+=dt*r.userData.spinSpeed;
+    });
+    if(currentGunMesh._coreLight) currentGunMesh._coreLight.color.setHSL((Date.now()%1000)/1000,1,0.7);
+  }
+  const oblCross=document.getElementById('obliterator-crosshair');
+  if(oblCross.style.display!=='none'){oblCross.style.left=crossX+'px';oblCross.style.top=crossY+'px';}
 
   // Interpolate other players
   for(const op of Object.values(otherPlayers)){if(op.targetPos) op.group.position.lerp(op.targetPos,0.18);}
