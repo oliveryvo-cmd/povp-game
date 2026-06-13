@@ -24,8 +24,8 @@ canvas{display:block;}
 #weapon-hud{display:flex;flex-direction:column;align-items:center;gap:6px;}
 #weapon-name{font-size:0.95rem;font-weight:900;letter-spacing:4px;text-shadow:0 0 12px currentColor;text-align:center;}
 #weapon-slots{display:flex;gap:6px;}
-.wslot{width:36px;height:36px;border:1px solid #333;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;opacity:0.4;transition:all 0.15s;}
-.wslot.active{border-color:currentColor;opacity:1;box-shadow:0 0 10px currentColor;}
+.wslot{width:40px;height:40px;border:1px solid #333;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;opacity:0.35;transition:all 0.15s;background:rgba(0,0,0,0.5);}
+.wslot.active{border-color:currentColor;border-width:2px;opacity:1;background:rgba(0,0,0,0.8);box-shadow:0 0 8px currentColor,0 0 20px currentColor,0 0 40px currentColor,inset 0 0 10px currentColor;text-shadow:0 0 8px currentColor,0 0 16px currentColor;}
 
 #ammo-wrap{text-align:right;}
 #ammo-num{font-size:2.4rem;font-weight:900;color:#0ff;text-shadow:0 0 20px #0ff;letter-spacing:2px;line-height:1;}
