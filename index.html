@@ -178,12 +178,15 @@ canvas{display:block;}
     </div>
     <div id="weapon-hud">
       <div id="weapon-name" style="color:#0ff">ASSAULT RIFLE</div>
-      <div id="weapon-slots">
+      <div id="weapon-slots" style="flex-wrap:wrap;justify-content:center;max-width:320px;">
         <div class="wslot active" id="ws0" style="color:#0ff">🔫</div>
         <div class="wslot" id="ws1" style="color:#f80">💥</div>
         <div class="wslot" id="ws2" style="color:#0f0">⚡</div>
         <div class="wslot" id="ws3" style="color:#f0f">🎯</div>
         <div class="wslot" id="ws4" style="color:#f00">🚀</div>
+        <div class="wslot" id="ws5" style="color:#88ffff">⚡</div>
+        <div class="wslot" id="ws6" style="color:#ff6600">🔥</div>
+        <div class="wslot" id="ws7" style="color:#aaffaa">💣</div>
       </div>
     </div>
     <div id="ammo-wrap">
@@ -258,7 +261,7 @@ canvas{display:block;}
     <button id="start-btn" class="lbtn" onclick="requestStart()" style="display:none">START GAME</button>
     <p id="controls-hint">MOUSE — AIM &nbsp;·&nbsp; CLICK/SPACE — SHOOT &nbsp;·&nbsp; R — RELOAD<br>
     WASD — MOVE &nbsp;·&nbsp; ↑ — JUMP (DOUBLE JUMP) &nbsp;·&nbsp; G — GRENADE<br>
-    1-5 — WEAPONS &nbsp;·&nbsp; TAB — SCOREBOARD &nbsp;·&nbsp; T — CHAT</p>
+    1-8 — WEAPONS &nbsp;·&nbsp; TAB — SCOREBOARD &nbsp;·&nbsp; T — CHAT</p>
   </div>
 </div>
 
@@ -334,7 +337,10 @@ const SFX={
   grenade:()=>{playTone(180,'square',0.15,0.2);},
   powerup:()=>{playTone(880,'sine',0.05,0.2);setTimeout(()=>playTone(1320,'sine',0.1,0.2),60);},
   levelup:()=>{[440,550,660,880].forEach((f,i)=>setTimeout(()=>playTone(f,'sine',0.12,0.18),i*80));},
-  streak:()=>{[660,880,1100].forEach((f,i)=>setTimeout(()=>playTone(f,'square',0.1,0.15),i*60));}
+  streak:()=>{[660,880,1100].forEach((f,i)=>setTimeout(()=>playTone(f,'square',0.1,0.15),i*60));},
+  railgun:()=>{playTone(1200,'sawtooth',0.06,0.35);playTone(600,'sine',0.12,0.25,-600);setTimeout(()=>playTone(300,'square',0.08,0.1),60);},
+  flame:()=>{playTone(80+Math.random()*40,'sawtooth',0.06,0.08);},
+  mine:()=>{playTone(400,'square',0.04,0.15);setTimeout(()=>playTone(500,'square',0.04,0.12),50);}
 };
 
 // ── Weapons ───────────────────────────────────────────────────────────────────
@@ -386,6 +392,42 @@ const WEAPONS=[
       const back=new THREE.Mesh(new THREE.TorusGeometry(0.085,0.012,6,12),new THREE.MeshBasicMaterial({color:nc}));back.position.set(0,0,0.34);g.add(back);
       const hand=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.14,0.1),new THREE.MeshLambertMaterial({color:0x1a0505}));hand.position.set(0,-0.14,0.08);g.add(hand);
       const gl=new THREE.PointLight(nc,0.6,2);gl.position.set(0,0,-0.4);g.add(gl);
+    }
+  },
+  // ── Railgun ─────────────────────────────────────────────────────────────────
+  {name:'RAILGUN',icon:'⚡',color:'#88ffff',ammo:8,maxAmmo:8,reloadTime:2.2,fireRate:1.4,auto:false,damage:180,headshotMult:3.0,spread:0,bulletSpeed:999,bulletColor:0x88ffff,bulletSize:0.04,bulletCount:1,recoil:0.5,isRailgun:true,
+    makeGun(g){
+      const nc=wUpg[5]?.skin>0?SKIN_COLORS[wUpg[5].skin]:0x88ffff;
+      const body=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.08,0.7),new THREE.MeshLambertMaterial({color:0x0a1a2a}));body.position.set(0,0,0);g.add(body);
+      const coil1=new THREE.Mesh(new THREE.CylinderGeometry(0.055,0.055,0.66,8),new THREE.MeshLambertMaterial({color:0x112233}));coil1.rotation.x=Math.PI/2;coil1.position.set(0,0,0);g.add(coil1);
+      [-0.055,0.055].forEach(x=>{
+        const rail=new THREE.Mesh(new THREE.BoxGeometry(0.012,0.012,0.72),new THREE.MeshBasicMaterial({color:nc}));rail.position.set(x,0.055,0);g.add(rail);
+        const rail2=new THREE.Mesh(new THREE.BoxGeometry(0.012,0.012,0.72),new THREE.MeshBasicMaterial({color:nc}));rail2.position.set(x,-0.055,0);g.add(rail2);
+      });
+      const tip=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.04,0.08,6),new THREE.MeshBasicMaterial({color:nc}));tip.rotation.x=Math.PI/2;tip.position.set(0,0,-0.39);g.add(tip);
+      const gl=new THREE.PointLight(nc,1,2);gl.position.set(0,0,-0.4);g.add(gl);
+    }
+  },
+  // ── Flamethrower ─────────────────────────────────────────────────────────────
+  {name:'FLAMETHROWER',icon:'🔥',color:'#ff6600',ammo:60,maxAmmo:60,reloadTime:2.0,fireRate:0.06,auto:true,damage:9,headshotMult:1.0,spread:0.12,bulletSpeed:14,bulletColor:0xff4400,bulletSize:0.14,bulletCount:1,recoil:0.06,isFlame:true,flameRange:10,
+    makeGun(g){
+      const nc=wUpg[6]?.skin>0?SKIN_COLORS[wUpg[6].skin]:0xff6600;
+      const tank=new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.1,0.5,10),new THREE.MeshLambertMaterial({color:0x2a1500}));tank.rotation.x=Math.PI/2;tank.position.set(0,0,0.1);g.add(tank);
+      const nozzle=new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.06,0.42,8),new THREE.MeshLambertMaterial({color:0x1a0a00}));nozzle.rotation.x=Math.PI/2;nozzle.position.set(0,0.04,-0.32);g.add(nozzle);
+      const tip=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.025,0.06,6),new THREE.MeshBasicMaterial({color:nc}));tip.rotation.x=Math.PI/2;tip.position.set(0,0.04,-0.54);g.add(tip);
+      const hose=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.025,0.2,6),new THREE.MeshLambertMaterial({color:0x1a1a1a}));hose.rotation.z=Math.PI/4;hose.position.set(-0.07,-0.08,0.08);g.add(hose);
+      const gl=new THREE.PointLight(nc,0,2.5);gl.position.set(0,0,-0.6);g.add(gl);g._flameLight=gl;
+    }
+  },
+  // ── Mine Launcher ─────────────────────────────────────────────────────────────
+  {name:'MINE LAUNCHER',icon:'💣',color:'#aaffaa',ammo:6,maxAmmo:6,reloadTime:2.5,fireRate:0.8,auto:false,damage:110,headshotMult:1.0,spread:0.02,bulletSpeed:18,bulletColor:0x44ff44,bulletSize:0.1,bulletCount:1,recoil:0.3,isMine:true,
+    makeGun(g){
+      const nc=wUpg[7]?.skin>0?SKIN_COLORS[wUpg[7].skin]:0xaaffaa;
+      const body=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.12,0.44),new THREE.MeshLambertMaterial({color:0x1a2a0a}));body.position.set(0,0,0);g.add(body);
+      const barrel=new THREE.Mesh(new THREE.CylinderGeometry(0.055,0.055,0.38,8),new THREE.MeshLambertMaterial({color:0x0f1f05}));barrel.rotation.x=Math.PI/2;barrel.position.set(0,0.02,-0.38);g.add(barrel);
+      const drum=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.07,0.12,8),new THREE.MeshLambertMaterial({color:0x162605}));drum.rotation.x=Math.PI/2;drum.position.set(0,-0.02,-0.06);g.add(drum);
+      const rim=new THREE.Mesh(new THREE.TorusGeometry(0.055,0.008,6,10),new THREE.MeshBasicMaterial({color:nc}));rim.position.set(0,0.02,-0.57);g.add(rim);
+      const gl=new THREE.PointLight(nc,0.5,1.5);gl.position.set(0,0,-0.6);g.add(gl);
     }
   }
 ];
@@ -446,6 +488,8 @@ let camYaw=0,camPitch=0,mouseDown=false,rightMouseDown=false,gameRunning=false;
 let shootCooldown=0,gunRecoil=0,gunAnim=0,autoFireTimer=0,isScoped=false;
 let myTeam='A',grenades=2,nearPowerUp=null;
 let killStreak=0;
+const placedMines=[];  // {mesh, glowLight, x, z, ownerId}
+const railgunBeams=[];  // {line, life}
 
 // ── Upgrades / XP ─────────────────────────────────────────────────────────────
 let xp=0,level=1,upgradePoints=0,prestige=0;
@@ -642,6 +686,14 @@ function connectLobby(){
   socket.on('powerup_collected',({id,collectorId})=>{removePowerUpMesh(id);if(collectorId===myId){SFX.powerup();}});
   socket.on('powerup_expired',({id})=>removePowerUpMesh(id));
   socket.on('chat',({name,msg,team,id})=>{addChatMsg(name,msg,team,id===myId);});
+  socket.on('railgun_beam',({from,dir,len})=>{
+    const f=new THREE.Vector3(from.x,from.y,from.z),d=new THREE.Vector3(dir.x,dir.y,dir.z).normalize();
+    const pts=[f.clone(),f.clone().addScaledVector(d,len||80)];
+    const geo=new THREE.BufferGeometry().setFromPoints(pts);
+    const line=new THREE.Line(geo,new THREE.LineBasicMaterial({color:0x88ffff,transparent:true,opacity:1}));
+    scene.add(line);railgunBeams.push({line,life:0.3});
+    const gl=new THREE.PointLight(0x88ffff,5,8);gl.position.copy(f);scene.add(gl);setTimeout(()=>scene.remove(gl),100);
+  });
   socket.on('game_start',()=>startPvP());
   socket.on('game_over',({winnerName,winnerTeam,scores})=>{scoreData=scores||scoreData;showGameOver(winnerName,winnerTeam);});
   socket.on('scores_update',s=>{scoreData=s;updateScoreboardData();updatePlayerCount();});
@@ -898,7 +950,7 @@ window.addEventListener('keydown',e=>{
   if(e.code==='KeyR'&&!reloading&&weaponAmmos[currentWeaponIdx]<effWeapon(currentWeaponIdx).maxAmmo) startReload();
   if(e.code==='Space') tryShoot();
   if(e.code==='KeyG') throwGrenade();
-  ['Digit1','Digit2','Digit3','Digit4','Digit5'].forEach((c,i)=>{if(e.code===c)switchWeapon(i);});
+  ['Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','Digit7','Digit8'].forEach((c,i)=>{if(e.code===c)switchWeapon(i);});
   e.preventDefault();
 });
 window.addEventListener('keyup',e=>{keys[e.code]=false;if(e.code==='Tab') document.getElementById('scoreboard').style.display='none';});
@@ -946,20 +998,96 @@ function explodeRocket(pos){
 
 // ── Shooting ─────────────────────────────────────────────────────────────────
 const raycaster=new THREE.Raycaster();
+function spawnRailgunBeam(from,dir,hitDist){
+  const len=hitDist||80;
+  const pts=[from.clone(),from.clone().addScaledVector(dir,len)];
+  const geo=new THREE.BufferGeometry().setFromPoints(pts);
+  const mat=new THREE.LineBasicMaterial({color:0x88ffff,linewidth:2,transparent:true,opacity:1});
+  const line=new THREE.Line(geo,mat);scene.add(line);
+  railgunBeams.push({line,life:0.3});
+  const gl=new THREE.PointLight(0x88ffff,6,10);gl.position.copy(from);scene.add(gl);
+  setTimeout(()=>scene.remove(gl),120);
+  // broadcast to other players
+  if(socket) socket.emit('railgun_beam',{from:{x:from.x,y:from.y,z:from.z},dir:{x:dir.x,y:dir.y,z:dir.z},len});
+}
+
+function placeMine(){
+  const dir=new THREE.Vector3(-Math.sin(camYaw),0,-Math.cos(camYaw));
+  const pos=camera.position.clone().addScaledVector(dir,2);pos.y=0.15;
+  const geo=new THREE.SphereGeometry(0.22,8,5);
+  const mat=new THREE.MeshLambertMaterial({color:0x224422,emissive:0x004400});
+  const mesh=new THREE.Mesh(geo,mat);mesh.position.copy(pos);scene.add(mesh);
+  const spike=new THREE.Mesh(new THREE.ConeGeometry(0.06,0.2,6),new THREE.MeshBasicMaterial({color:0xaaffaa}));spike.position.y=0.2;mesh.add(spike);
+  const gl=new THREE.PointLight(0xaaffaa,1.2,2.5);gl.position.set(0,0.2,0);mesh.add(gl);
+  placedMines.push({mesh,gl,x:pos.x,z:pos.z,ownerId:myId,armed:false,armTimer:1.0});
+  SFX.mine();
+}
+
 function tryShoot(){
   if(shootCooldown>0||reloading||chatOpen) return;
   const w=WEAPONS[currentWeaponIdx],ew=effWeapon(currentWeaponIdx);
   if(weaponAmmos[currentWeaponIdx]<=0){SFX.empty();return;}
   if(!adminFlags.ammo) weaponAmmos[currentWeaponIdx]--;
-  SFX[['pistol','shotgun','plasma','sniper','rocket'][currentWeaponIdx]]();
-  shootCooldown=ew.fireRate;muzzleLight.intensity=w.isRocket?6:4;gunRecoil=w.recoil;
+
+  // Mine: place on ground instead of firing a bullet
+  if(w.isMine){shootCooldown=ew.fireRate;gunRecoil=w.recoil;placeMine();updateHUD();if(weaponAmmos[currentWeaponIdx]<=0)startReload();return;}
+
+  const sfxKeys=['pistol','shotgun','plasma','sniper','rocket','railgun','flame','mine'];
+  SFX[sfxKeys[currentWeaponIdx]]?.();
+  shootCooldown=ew.fireRate;muzzleLight.intensity=w.isRocket?6:w.isRailgun?8:4;gunRecoil=w.recoil;
   crossEl.classList.add('spread');setTimeout(()=>crossEl.classList.remove('spread'),120);
   setTimeout(()=>muzzleLight.intensity=0,65);
   const nx=(crossX/innerWidth)*2-1,ny=-(crossY/innerHeight)*2+1;
   raycaster.setFromCamera({x:nx,y:ny},camera);
   const dir=raycaster.ray.direction.clone().normalize();
   const muzzle=new THREE.Vector3(0.22,-0.14,-0.76);camera.localToWorld(muzzle);
+
   if(w.isRocket){spawnPlayerBullet(muzzle,dir,w,true);updateHUD();if(weaponAmmos[currentWeaponIdx]<=0)startReload();return;}
+
+  if(w.isRailgun){
+    // instant hitscan — check all enemies, pierce through
+    const hitTargets=[];
+    for(const [pid,op] of Object.entries(otherPlayers)){if(!op.group.visible)continue;hitTargets.push({mesh:op.body,id:pid,isHead:false},{mesh:op.head,id:pid,isHead:true});}
+    const rg=new THREE.Raycaster();rg.set(raycaster.ray.origin,dir);
+    const hits=rg.intersectObjects(hitTargets.map(t=>t.mesh));
+    let beamDist=80;
+    if(hits.length&&socket){
+      const ht=hitTargets.find(t=>t.mesh===hits[0].object);
+      const dmg=adminFlags.oneshot?9999:Math.round(ew.damage*(ht.isHead?ew.headshotMult:1));
+      if(ht.isHead)gainXP(25);
+      socket.emit('shoot',{targetId:ht.id,damage:dmg,isHeadshot:ht.isHead,weapon:currentWeaponIdx});
+      beamDist=hits[0].distance;
+      const op=otherPlayers[ht.id];
+      if(op) spawnDmgNumber(op.group.position.clone().add(new THREE.Vector3(0,1.8,0)),dmg,ht.isHead);
+    }
+    spawnRailgunBeam(muzzle,dir,beamDist);
+    updateHUD();if(weaponAmmos[currentWeaponIdx]<=0)startReload();return;
+  }
+
+  // Flamethrower: short-range cone
+  if(w.isFlame){
+    // Spawn flame particles toward aim
+    for(let i=0;i<5;i++){
+      const sd=dir.clone();sd.x+=(Math.random()-.5)*0.22;sd.y+=(Math.random()-.5)*0.22;sd.z+=(Math.random()-.5)*0.22;sd.normalize();
+      const p=new THREE.Mesh(new THREE.SphereGeometry(0.13+Math.random()*0.1,4,4),new THREE.MeshBasicMaterial({color:Math.random()<0.5?0xff4400:0xff8800,transparent:true,opacity:0.85}));
+      p.position.copy(muzzle);scene.add(p);
+      particles.push({mesh:p,vel:sd.clone().multiplyScalar(10+Math.random()*4),life:0.25+Math.random()*0.2,isFlame:true});
+    }
+    // Light flicker on gun
+    if(currentGunMesh?._flameLight) currentGunMesh._flameLight.intensity=3;
+    setTimeout(()=>{if(currentGunMesh?._flameLight)currentGunMesh._flameLight.intensity=0;},80);
+    // Damage check: only within range
+    const hitTargets=[];
+    for(const [pid,op] of Object.entries(otherPlayers)){if(!op.group.visible)continue;hitTargets.push({mesh:op.body,id:pid,isHead:false},{mesh:op.head,id:pid,isHead:true});}
+    if(hitTargets.length){
+      const rf=new THREE.Raycaster();rf.set(raycaster.ray.origin,dir);rf.far=w.flameRange;
+      const hits=rf.intersectObjects(hitTargets.map(t=>t.mesh));
+      if(hits.length&&socket){const ht=hitTargets.find(t=>t.mesh===hits[0].object);const dmg=adminFlags.oneshot?9999:Math.round(ew.damage);socket.emit('shoot',{targetId:ht.id,damage:dmg,isHeadshot:false,weapon:currentWeaponIdx});}
+    }
+    updateHUD();if(weaponAmmos[currentWeaponIdx]<=0)startReload();return;
+  }
+
+  // Standard bullet weapons
   const hitTargets=[];
   for(const [pid,op] of Object.entries(otherPlayers)){if(!op.group.visible)continue;hitTargets.push({mesh:op.body,id:pid,isHead:false},{mesh:op.head,id:pid,isHead:true});}
   for(let s=0;s<w.bulletCount;s++){
@@ -1020,6 +1148,8 @@ function startPvP(){
   camera.position.set(Math.cos(a)*r,PLAYER_HEIGHT,Math.sin(a)*r);
   camYaw=Math.random()*Math.PI*2;camPitch=0;camera.fov=75;camera.updateProjectionMatrix();isScoped=false;
   playerBullets.length=0;rockets.length=0;particles.length=0;grenadeObjs.length=0;trailParticles.length=0;
+  placedMines.forEach(m=>scene.remove(m.mesh));placedMines.length=0;
+  railgunBeams.forEach(b=>{scene.remove(b.line);b.line.geometry.dispose();});railgunBeams.length=0;
   crossX=innerWidth/2;crossY=innerHeight/2;lastMouseX=innerWidth/2;lastMouseY=innerHeight/2;
   buildGunMesh(0);
   document.querySelectorAll('.wslot').forEach((el,i)=>{el.classList.toggle('active',i===0);el.style.color=WEAPONS[i].color;});
@@ -1134,10 +1264,45 @@ renderer.setAnimationLoop(()=>{
     }
   }
 
-  // Particles
+  // Particles (flame particles slow down & rise, others fall)
   for(let i=particles.length-1;i>=0;i--){
-    const p=particles[i];p.life-=dt;p.vel.y-=9.8*dt;p.mesh.position.addScaledVector(p.vel,dt);p.mesh.material.opacity=p.life/.8;
+    const p=particles[i];p.life-=dt;
+    if(p.isFlame){p.vel.multiplyScalar(0.88);p.vel.y+=2*dt;p.mesh.scale.setScalar(1+dt*2);}
+    else{p.vel.y-=9.8*dt;}
+    p.mesh.position.addScaledVector(p.vel,dt);p.mesh.material.opacity=p.life/.8;
     if(p.life<=0){scene.remove(p.mesh);particles.splice(i,1);}
+  }
+
+  // Railgun beam fade
+  for(let i=railgunBeams.length-1;i>=0;i--){
+    const b=railgunBeams[i];b.life-=dt;b.line.material.opacity=b.life/0.3;
+    if(b.life<=0){scene.remove(b.line);b.line.geometry.dispose();b.line.material.dispose();railgunBeams.splice(i,1);}
+  }
+
+  // Mines: arm delay + proximity check against enemies
+  for(let i=placedMines.length-1;i>=0;i--){
+    const m=placedMines[i];
+    if(!m.armed){m.armTimer-=dt;m.mesh.children.find(c=>c.isLight)?.children;
+      m.gl.intensity=m.armTimer>0?0.3:1.5;
+      if(m.armTimer<=0){m.armed=true;}}
+    else{
+      // pulse glow
+      m.gl.intensity=1.2+Math.sin(Date.now()*0.008)*0.6;
+      // check enemy players
+      for(const [pid,op] of Object.entries(otherPlayers)){
+        if(!op.group.visible) continue;
+        const dx=op.group.position.x-m.x,dz=op.group.position.z-m.z;
+        if(Math.sqrt(dx*dx+dz*dz)<1.6){
+          // explode
+          spawnParticles(m.mesh.position.clone(),0x44ff44,18,6);
+          spawnParticles(m.mesh.position.clone(),0xffaa00,12,4);
+          const bl=new THREE.PointLight(0x44ff44,8,12);bl.position.copy(m.mesh.position);scene.add(bl);setTimeout(()=>scene.remove(bl),250);
+          SFX.explosion();
+          if(socket){const dmg=adminFlags.oneshot?9999:Math.round(effWeapon(7).damage);socket.emit('shoot',{targetId:pid,damage:dmg,isHeadshot:false,weapon:7});}
+          scene.remove(m.mesh);placedMines.splice(i,1);break;
+        }
+      }
+    }
   }
 
   renderer.render(scene,camera);
