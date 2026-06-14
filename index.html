@@ -119,11 +119,23 @@ canvas{display:block;}
 .sc-table td.team-a{color:#ff4444;}
 .sc-table td.team-b{color:#4488ff;}
 
-/* Death */
+/* Death + Kill Cam */
 #death-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.82);z-index:28;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;}
 #death-overlay h2{font-size:3rem;font-weight:900;letter-spacing:8px;color:#f00;text-shadow:0 0 40px #f00;}
 #respawn-timer{font-size:1rem;letter-spacing:4px;color:#f008;}
 #killed-by{font-size:0.7rem;letter-spacing:3px;color:#f886;}
+#killcam-overlay{position:fixed;inset:0;z-index:27;display:none;pointer-events:none;}
+#killcam-label{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.7);border:1px solid #f004;padding:10px 28px;font-size:0.7rem;letter-spacing:5px;color:#ff4444;text-align:center;z-index:29;}
+#killcam-bar{position:fixed;bottom:0;left:0;height:4px;background:#f00;transition:width linear;}
+/* Map selector */
+#map-selector{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin:4px 0;}
+.map-card{padding:10px 18px;border:2px solid #aad;background:#f0f4ff;cursor:pointer;font-size:0.7rem;font-weight:900;letter-spacing:3px;color:#335;border-radius:4px;transition:all 0.2s;min-width:90px;text-align:center;}
+.map-card:hover,.map-card.selected{background:#0088cc;border-color:#005599;color:#fff;}
+/* Skin picker */
+#skin-picker{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center;margin:2px 0;}
+.skin-swatch{width:24px;height:24px;border-radius:50%;border:2px solid transparent;cursor:pointer;transition:transform 0.15s,border-color 0.15s;}
+.skin-swatch:hover,.skin-swatch.selected{transform:scale(1.25);border-color:#fff;box-shadow:0 0 8px #fff8;}
+#skin-label{font-size:0.6rem;letter-spacing:3px;color:#446;margin-bottom:2px;}
 
 /* Game over */
 #gameover-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.94);z-index:32;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;}
@@ -372,11 +384,14 @@ canvas{display:block;}
   <div id="waiting-room">
     <p style="font-size:0.65rem;letter-spacing:3px;color:#444;">PLAYERS IN LOBBY</p>
     <div id="player-list"></div>
+    <div id="skin-label">CHOOSE YOUR COLOR</div>
+    <div id="skin-picker"></div>
+    <div id="map-selector"></div>
     <p id="waiting-msg">WAITING FOR HOST TO START...</p>
     <button id="start-btn" class="lbtn" onclick="requestStart()" style="display:none">START GAME</button>
     <p id="controls-hint">MOUSE — AIM &nbsp;·&nbsp; CLICK/SPACE — SHOOT &nbsp;·&nbsp; R — RELOAD<br>
     WASD — MOVE &nbsp;·&nbsp; ↑ — JUMP (DOUBLE JUMP) &nbsp;·&nbsp; G — GRENADE<br>
-    1-8 — WEAPONS &nbsp;·&nbsp; B — WEAPON SHOP &nbsp;·&nbsp; TAB — SCOREBOARD &nbsp;·&nbsp; T — CHAT</p>
+    1-9 — WEAPONS &nbsp;·&nbsp; B — WEAPON SHOP &nbsp;·&nbsp; TAB — SCOREBOARD &nbsp;·&nbsp; T — CHAT</p>
   </div>
 </div>
 
@@ -387,6 +402,11 @@ canvas{display:block;}
   <div id="shop-hint">[ B ] CLOSE &nbsp;·&nbsp; EARN CREDITS BY GETTING KILLS</div>
   <div id="shop-grid"></div>
 </div>
+
+<!-- Kill Cam -->
+<div id="killcam-overlay"></div>
+<div id="killcam-label" style="display:none">📹 KILL CAM<br><span id="killcam-name" style="color:#fff;font-size:0.85rem;letter-spacing:4px;"></span></div>
+<div id="killcam-bar" style="width:100%;"></div>
 
 <!-- Death -->
 <div id="death-overlay">
@@ -463,8 +483,56 @@ const SFX={
   streak:()=>{[660,880,1100].forEach((f,i)=>setTimeout(()=>playTone(f,'square',0.1,0.15),i*60));},
   railgun:()=>{playTone(1200,'sawtooth',0.06,0.35);playTone(600,'sine',0.12,0.25,-600);setTimeout(()=>playTone(300,'square',0.08,0.1),60);},
   flame:()=>{playTone(80+Math.random()*40,'sawtooth',0.06,0.08);},
-  mine:()=>{playTone(400,'square',0.04,0.15);setTimeout(()=>playTone(500,'square',0.04,0.12),50);}
+  mine:()=>{playTone(400,'square',0.04,0.15);setTimeout(()=>playTone(500,'square',0.04,0.12),50);},
+  footstep:()=>{playTone(60+Math.random()*20,'square',0.04,0.04);},
+  killcam:()=>{playTone(200,'sawtooth',0.3,0.2);playTone(150,'square',0.25,0.15,-300);},
+  mapchange:()=>{[440,550,660].forEach((f,i)=>setTimeout(()=>playTone(f,'sine',0.12,0.18),i*70));},
+  melee:()=>{playTone(900,'sawtooth',0.08,0.12);playTone(400,'square',0.06,0.1,200);}
 };
+
+// ── Player skin color ─────────────────────────────────────────────────────────
+const PLAYER_SKIN_COLORS=['#00ffcc','#ff4444','#ffcc00','#aa44ff','#ff8800','#00aaff','#ff00aa','#44ff44','#ffffff'];
+let myPlayerColor=PLAYER_SKIN_COLORS[0];
+function buildSkinPicker(){
+  const el=document.getElementById('skin-picker');
+  el.innerHTML='';
+  PLAYER_SKIN_COLORS.forEach((col,i)=>{
+    const sw=document.createElement('div');
+    sw.className='skin-swatch'+(myPlayerColor===col?' selected':'');
+    sw.style.background=col;
+    sw.onclick=()=>{
+      myPlayerColor=col;
+      document.querySelectorAll('.skin-swatch').forEach(s=>s.classList.remove('selected'));
+      sw.classList.add('selected');
+    };
+    el.appendChild(sw);
+  });
+}
+
+// ── Map selector ──────────────────────────────────────────────────────────────
+const MAPS=[
+  {id:'arena',label:'⚔ ARENA',desc:'Classic open arena'},
+  {id:'castle',label:'🏰 CASTLE',desc:'Tight corridors'},
+  {id:'neon',label:'🌆 NEON CITY',desc:'Urban rooftops'},
+];
+let selectedMap='arena';
+function buildMapSelector(){
+  const el=document.getElementById('map-selector');
+  el.innerHTML='';
+  MAPS.forEach(m=>{
+    const card=document.createElement('div');
+    card.className='map-card'+(selectedMap===m.id?' selected':'');
+    card.textContent=m.label;
+    card.title=m.desc;
+    card.onclick=()=>{
+      selectedMap=m.id;
+      document.querySelectorAll('.map-card').forEach(c=>c.classList.remove('selected'));
+      card.classList.add('selected');
+      SFX.mapchange();
+    };
+    el.appendChild(card);
+  });
+}
 
 // ── Weapons ───────────────────────────────────────────────────────────────────
 const WEAPONS=[
@@ -594,26 +662,80 @@ const neonCols=[0x00ffff,0xff00ff,0x00ff44,0xff4400];
 for(let i=0;i<8;i++){const l=new THREE.PointLight(neonCols[i%4],1.5,18);const a=(i/8)*Math.PI*2;l.position.set(Math.cos(a)*28,2.5,Math.sin(a)*28);scene.add(l);}
 
 // ── Map ───────────────────────────────────────────────────────────────────────
-const floorMat=new THREE.MeshLambertMaterial({color:0xd8e8f8});
-const wallMat=new THREE.MeshLambertMaterial({color:0xb8cce0});
-const ceilMat=new THREE.MeshLambertMaterial({color:0xe8f2ff});
-const coverMat=new THREE.MeshLambertMaterial({color:0xc0d0e8});
 const ARENA=40;
-function addBox(w,h,d,x,y,z,mat,cast=true){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);m.position.set(x,y,z);m.castShadow=cast;m.receiveShadow=true;scene.add(m);return m;}
-const floor=new THREE.Mesh(new THREE.PlaneGeometry(ARENA*2,ARENA*2),floorMat);floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);
-const ceil2=new THREE.Mesh(new THREE.PlaneGeometry(ARENA*2,ARENA*2),ceilMat);ceil2.rotation.x=Math.PI/2;ceil2.position.y=6;scene.add(ceil2);
-addBox(ARENA*2,6,1,0,3,-ARENA,wallMat,false);addBox(ARENA*2,6,1,0,3,ARENA,wallMat,false);
-addBox(1,6,ARENA*2,-ARENA,3,0,wallMat,false);addBox(1,6,ARENA*2,ARENA,3,0,wallMat,false);
-function addNeon(x,y,z,w,h,d,col){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshBasicMaterial({color:col}));m.position.set(x,y,z);scene.add(m);const l=new THREE.PointLight(col,0.7,10);l.position.set(x,y,z);scene.add(l);}
-addNeon(0,0.08,-ARENA+0.6,ARENA*2-2,0.1,0.1,0x00ffff);addNeon(0,0.08,ARENA-0.6,ARENA*2-2,0.1,0.1,0x00ffff);
-addNeon(-ARENA+0.6,0.08,0,0.1,0.1,ARENA*2-2,0x00ffff);addNeon(ARENA-0.6,0.08,0,0.1,0.1,ARENA*2-2,0x00ffff);
 const coverAABBs=[];
-[[8,8],[-8,8],[8,-8],[-8,-8],[18,0],[-18,0],[0,18],[0,-18],[14,14],[-14,14],[14,-14],[-14,-14],[22,8],[-22,-8],[8,22],[-8,-22]].forEach(([cx,cz])=>{
-  const h=1.5+Math.random()*1.5,w=1.2+Math.random()*1.5;
-  addBox(w,h,w,cx,h/2,cz,coverMat);
-  addNeon(cx,h,cz,w+0.05,0.06,w+0.05,neonCols[Math.floor(Math.random()*4)]);
-  coverAABBs.push({x:cx,z:cz,hw:w/2+0.3,hd:w/2+0.3});
-});
+const mapObjects=[];
+function addBox(w,h,d,x,y,z,mat,cast=true){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);m.position.set(x,y,z);m.castShadow=cast;m.receiveShadow=true;scene.add(m);mapObjects.push(m);return m;}
+function addNeon(x,y,z,w,h,d,col){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshBasicMaterial({color:col}));m.position.set(x,y,z);scene.add(m);mapObjects.push(m);const l=new THREE.PointLight(col,0.7,10);l.position.set(x,y,z);scene.add(l);mapObjects.push(l);}
+
+function clearMap(){mapObjects.forEach(o=>scene.remove(o));mapObjects.length=0;coverAABBs.length=0;}
+
+function buildMap(mapId){
+  clearMap();
+  if(mapId==='castle'){
+    // Stone castle — tight corridors, towers
+    renderer.setClearColor(0x1a1008);
+    scene.fog=new THREE.Fog(0x1a1008,30,90);
+    const stone=new THREE.MeshLambertMaterial({color:0x6b5a3e});
+    const dark=new THREE.MeshLambertMaterial({color:0x3a2e1e});
+    const floor=new THREE.Mesh(new THREE.PlaneGeometry(ARENA*2,ARENA*2),new THREE.MeshLambertMaterial({color:0x5a4a2e}));floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);mapObjects.push(floor);
+    // Outer walls
+    addBox(ARENA*2,8,1.5,0,4,-ARENA,stone,false);addBox(ARENA*2,8,1.5,0,4,ARENA,stone,false);
+    addBox(1.5,8,ARENA*2,-ARENA,4,0,stone,false);addBox(1.5,8,ARENA*2,ARENA,4,0,stone,false);
+    // Corner towers
+    [[-ARENA,-ARENA],[ARENA,-ARENA],[-ARENA,ARENA],[ARENA,ARENA]].forEach(([tx,tz])=>{
+      addBox(6,10,6,tx,5,tz,stone);coverAABBs.push({x:tx,z:tz,hw:3.4,hd:3.4});
+    });
+    // Inner walls forming corridors
+    [[-15,0,2,6],[15,0,2,6],[0,-15,6,2],[0,15,6,2],[-8,-8,1.5,8],[8,8,1.5,8],[-8,8,8,1.5],[8,-8,8,1.5]].forEach(([cx,cz,ww,wd])=>{
+      addBox(ww,5,wd,cx,2.5,cz,dark);coverAABBs.push({x:cx,z:cz,hw:ww/2+0.3,hd:wd/2+0.3});
+    });
+    // Torches
+    [-20,-10,0,10,20].forEach(p=>{addNeon(p,2.5,-ARENA+2,0.1,0.3,0.1,0xff6600);addNeon(p,2.5,ARENA-2,0.1,0.3,0.1,0xff6600);});
+  } else if(mapId==='neon'){
+    // Neon city — rooftops, glowing platforms
+    renderer.setClearColor(0x050010);
+    scene.fog=new THREE.Fog(0x050010,35,100);
+    const concrete=new THREE.MeshLambertMaterial({color:0x1a1a2e});
+    const glass=new THREE.MeshLambertMaterial({color:0x0a1a3e,transparent:true,opacity:0.7});
+    const floor=new THREE.Mesh(new THREE.PlaneGeometry(ARENA*2,ARENA*2),new THREE.MeshLambertMaterial({color:0x0a0a15}));floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);mapObjects.push(floor);
+    addBox(ARENA*2,8,1,0,4,-ARENA,concrete,false);addBox(ARENA*2,8,1,0,4,ARENA,concrete,false);
+    addBox(1,8,ARENA*2,-ARENA,4,0,concrete,false);addBox(1,8,ARENA*2,ARENA,4,0,concrete,false);
+    // Buildings as cover
+    [[10,10,4,6],[−10,10,5,4],[-10,-10,4,6],[10,-10,5,4],[0,18,6,3],[0,-18,6,3],[18,0,3,6],[-18,0,3,6],[14,-14,3,3],[-14,14,3,3]].forEach(([cx,cz,ww,wd])=>{
+      if(typeof cx!=='number') return;
+      const bh=3+Math.random()*4;
+      addBox(ww,bh,wd,cx,bh/2,cz,concrete);
+      addNeon(cx,bh,cz,ww+0.1,0.08,wd+0.1,[0x00ffff,0xff00ff,0x00ff88,0xff4400][Math.floor(Math.random()*4)]);
+      coverAABBs.push({x:cx,z:cz,hw:ww/2+0.3,hd:wd/2+0.3});
+    });
+    // Neon ground lines
+    for(let i=-3;i<=3;i++){addNeon(i*12,0.05,0,0.06,0.06,ARENA*2,0x00ffff);addNeon(0,0.05,i*12,ARENA*2,0.06,0.06,0xff00ff);}
+  } else {
+    // Default arena
+    renderer.setClearColor(0x1a2030);
+    scene.fog=new THREE.Fog(0x1a2030,40,110);
+    const floorMat=new THREE.MeshLambertMaterial({color:0xd8e8f8});
+    const wallMat=new THREE.MeshLambertMaterial({color:0xb8cce0});
+    const ceilMat=new THREE.MeshLambertMaterial({color:0xe8f2ff});
+    const coverMat=new THREE.MeshLambertMaterial({color:0xc0d0e8});
+    const neonCols2=[0x00ffff,0xff00ff,0x00ff44,0xff4400];
+    const floor=new THREE.Mesh(new THREE.PlaneGeometry(ARENA*2,ARENA*2),floorMat);floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);mapObjects.push(floor);
+    const ceil2=new THREE.Mesh(new THREE.PlaneGeometry(ARENA*2,ARENA*2),ceilMat);ceil2.rotation.x=Math.PI/2;ceil2.position.y=6;scene.add(ceil2);mapObjects.push(ceil2);
+    addBox(ARENA*2,6,1,0,3,-ARENA,wallMat,false);addBox(ARENA*2,6,1,0,3,ARENA,wallMat,false);
+    addBox(1,6,ARENA*2,-ARENA,3,0,wallMat,false);addBox(1,6,ARENA*2,ARENA,3,0,wallMat,false);
+    addNeon(0,0.08,-ARENA+0.6,ARENA*2-2,0.1,0.1,0x00ffff);addNeon(0,0.08,ARENA-0.6,ARENA*2-2,0.1,0.1,0x00ffff);
+    addNeon(-ARENA+0.6,0.08,0,0.1,0.1,ARENA*2-2,0x00ffff);addNeon(ARENA-0.6,0.08,0,0.1,0.1,ARENA*2-2,0x00ffff);
+    [[8,8],[-8,8],[8,-8],[-8,-8],[18,0],[-18,0],[0,18],[0,-18],[14,14],[-14,14],[14,-14],[-14,-14],[22,8],[-22,-8],[8,22],[-8,-22]].forEach(([cx,cz])=>{
+      const ch=1.5+Math.random()*1.5,cw=1.2+Math.random()*1.5;
+      addBox(cw,ch,cw,cx,ch/2,cz,coverMat);
+      addNeon(cx,ch,cz,cw+0.05,0.06,cw+0.05,neonCols2[Math.floor(Math.random()*4)]);
+      coverAABBs.push({x:cx,z:cz,hw:cw/2+0.3,hd:cw/2+0.3});
+    });
+  }
+}
+buildMap('arena');
+
 function collidesWall(x,z,r=0.4){
   if(x<-ARENA+r||x>ARENA-r||z<-ARENA+r||z>ARENA-r) return true;
   for(const b of coverAABBs) if(Math.abs(x-b.x)<b.hw+r&&Math.abs(z-b.z)<b.hd+r) return true;
@@ -964,6 +1086,7 @@ function connectLobby(){
     document.getElementById('name-screen').style.display='none';
     document.getElementById('waiting-room').style.display='flex';
     document.getElementById('start-btn').style.display=host?'block':'none';
+    buildSkinPicker(); buildMapSelector();
     for(const [pid,p] of Object.entries(players)) if(pid!==myId) addOtherPlayer(p);
     scoreData=Object.values(players);renderPlayerList(players);updatePlayerCount();
     pus.forEach(pu=>spawnPowerUpMesh(pu));
@@ -973,9 +1096,10 @@ function connectLobby(){
     const all={};for(const s of scoreData)all[s.id]=s;renderPlayerList(all);updatePlayerCount();
     showBanner(p.name+' JOINED');SFX.join();
   });
-  socket.on('player_moved',({id,pos,yaw,weapon})=>{
+  socket.on('player_moved',({id,pos,yaw,weapon,color})=>{
     const op=otherPlayers[id];if(!op)return;
     op.targetPos=new THREE.Vector3(pos.x,pos.y,pos.z);op.targetYaw=yaw;op.weapon=weapon;
+    if(color&&op.body&&op.body.material){op.body.material.color.set(color);op.body.material.emissive.set(color);op.body.material.emissiveIntensity=0.18;}
   });
   socket.on('take_damage',({damage,hp})=>{
     if(adminFlags.god) return;
@@ -1005,7 +1129,7 @@ function connectLobby(){
       const op=otherPlayers[victimId];
       earnCredits(baseCredits+streakBonus, op?.group.position.clone().add(new THREE.Vector3(0,2,0)));
     }
-    if(victimId===myId){killStreak=0;showDeathScreen('KILLED BY '+killerName);}
+    if(victimId===myId){killStreak=0;showDeathScreen('KILLED BY '+killerName, killerId);}
     updateHUD();updateScoreboardData();updateTeamScore();
   });
   socket.on('respawn',({pos})=>{
@@ -1224,10 +1348,35 @@ function addKillfeed(text,team){
   el.textContent=text;kf.prepend(el);setTimeout(()=>el.remove(),2600);
 }
 
-function showDeathScreen(killedByMsg){
+let killCamActive=false,killCamKillerId=null;
+function showDeathScreen(killedByMsg, killerId){
   gameRunning=false;killStreak=0;
-  document.getElementById('killed-by').textContent=killedByMsg;
-  document.getElementById('death-overlay').style.display='flex';
+  SFX.killcam();
+  // Kill cam — spectate killer for 2s
+  killCamActive=false;
+  if(killerId && otherPlayers[killerId]){
+    killCamActive=true; killCamKillerId=killerId;
+    const kl=document.getElementById('killcam-label');
+    const killerName=scoreData.find(p=>p.id===killerId)?.name||'ENEMY';
+    kl.querySelector('#killcam-name').textContent=killerName;
+    kl.style.display='block';
+    const bar=document.getElementById('killcam-bar');
+    bar.style.transition='none';bar.style.width='100%';
+    setTimeout(()=>{bar.style.transition='width 2s linear';bar.style.width='0%';},50);
+    setTimeout(()=>{
+      killCamActive=false;killCamKillerId=null;
+      kl.style.display='none';
+      document.getElementById('killed-by').textContent=killedByMsg;
+      document.getElementById('death-overlay').style.display='flex';
+      startRespawnTimer();
+    },2000);
+  } else {
+    document.getElementById('killed-by').textContent=killedByMsg;
+    document.getElementById('death-overlay').style.display='flex';
+    startRespawnTimer();
+  }
+}
+function startRespawnTimer(){
   let t=3;
   document.getElementById('respawn-timer').textContent='RESPAWNING IN '+t+'...';
   const iv=setInterval(()=>{t--;if(t<=0){clearInterval(iv);document.getElementById('respawn-timer').textContent='RESPAWNING...';}else document.getElementById('respawn-timer').textContent='RESPAWNING IN '+t+'...';},1000);
@@ -1706,6 +1855,7 @@ function startPvP(){
   credits=0;unlockedWeapons.clear();unlockedWeapons.add(0);unlockedWeapons.add(8);
   updateCreditsHUD();
   crossX=innerWidth/2;crossY=innerHeight/2;lastMouseX=innerWidth/2;lastMouseY=innerHeight/2;
+  buildMap(selectedMap);
   buildGunMesh(0);
   document.querySelectorAll('.wslot').forEach((el,i)=>{el.classList.toggle('active',i===0);el.style.color=WEAPONS[i].color;});
   document.getElementById('weapon-name').textContent=WEAPONS[0].name;document.getElementById('weapon-name').style.color=WEAPONS[0].color;
@@ -1793,7 +1943,7 @@ renderer.setAnimationLoop(()=>{
 
   // Position sync
   const now=Date.now();
-  if(socket&&now-lastPosSend>50){lastPosSend=now;socket.emit('position',{pos:{x:camera.position.x,y:camera.position.y,z:camera.position.z},yaw:camYaw,pitch:camPitch,weapon:currentWeaponIdx});}
+  if(socket&&now-lastPosSend>50){lastPosSend=now;socket.emit('position',{pos:{x:camera.position.x,y:camera.position.y,z:camera.position.z},yaw:camYaw,pitch:camPitch,weapon:currentWeaponIdx,color:myPlayerColor});}
 
   // Animate OBLITERATOR rings + update obliterator crosshair position
   if(currentGunMesh?._rings){
@@ -1806,8 +1956,23 @@ renderer.setAnimationLoop(()=>{
   const oblCross=document.getElementById('obliterator-crosshair');
   if(oblCross.style.display!=='none'){oblCross.style.left=crossX+'px';oblCross.style.top=crossY+'px';}
 
+  // Kill cam — move camera to follow killer
+  if(killCamActive && killCamKillerId && otherPlayers[killCamKillerId]){
+    const kop=otherPlayers[killCamKillerId];
+    const kpos=kop.group.position.clone().add(new THREE.Vector3(0,1.5,0));
+    camera.position.lerp(kpos,0.12);
+    camera.rotation.y+=(kop.targetYaw-camera.rotation.y)*0.1;
+  }
+
   // Interpolate other players
   for(const op of Object.values(otherPlayers)){if(op.targetPos) op.group.position.lerp(op.targetPos,0.18);}
+
+  // Footstep sounds
+  if(gameRunning&&onGround&&mv.length()>0){
+    if(!window._footTimer) window._footTimer=0;
+    window._footTimer-=dt;
+    if(window._footTimer<=0){window._footTimer=isSprinting?0.22:0.35;SFX.footstep();}
+  }
 
   // Player trail
   trailTimer-=dt;
