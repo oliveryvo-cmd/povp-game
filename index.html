@@ -149,6 +149,40 @@ canvas{display:block;}
 #prestige-btn{display:none;padding:10px 30px;background:transparent;border:2px solid #f0f;color:#f0f;font-size:0.8rem;font-weight:900;letter-spacing:5px;cursor:pointer;font-family:'Courier New',monospace;text-shadow:0 0 10px #f0f;border-radius:4px;}
 #prestige-btn:hover{background:#f0f2;color:#fff;}
 
+/* Sprint / slide indicator */
+#sprint-indicator{position:absolute;bottom:110px;left:50%;transform:translateX(-50%);font-size:0.6rem;letter-spacing:4px;color:#0ff;text-shadow:0 0 8px #0ff;opacity:0;transition:opacity 0.15s;pointer-events:none;}
+#slide-bar-wrap{position:absolute;bottom:100px;left:50%;transform:translateX(-50%);display:none;flex-direction:column;align-items:center;gap:3px;}
+#slide-bar-bg{width:120px;height:3px;background:#fff2;border-radius:2px;}
+#slide-bar-fill{height:100%;background:#0ff;border-radius:2px;transition:width 0.05s;}
+
+/* Mobile controls */
+#mobile-controls{position:fixed;inset:0;pointer-events:none;z-index:30;display:none;}
+#joy-zone{position:absolute;bottom:0;left:0;width:50%;height:55%;pointer-events:all;touch-action:none;}
+#joy-base{position:absolute;width:110px;height:110px;border-radius:50%;background:rgba(255,255,255,0.06);border:2px solid rgba(255,255,255,0.18);transform:translate(-50%,-50%);display:none;}
+#joy-knob{position:absolute;width:46px;height:46px;border-radius:50%;background:rgba(0,220,255,0.55);border:2px solid #0ff;box-shadow:0 0 12px #0ff;top:50%;left:50%;transform:translate(-50%,-50%);}
+#aim-zone{position:absolute;bottom:0;right:0;width:50%;height:55%;pointer-events:all;touch-action:none;}
+#mb-fire{position:absolute;bottom:28px;right:28px;width:74px;height:74px;border-radius:50%;background:rgba(255,30,30,0.28);border:2px solid #f55;color:#fff;font-size:0.6rem;font-weight:900;letter-spacing:2px;pointer-events:all;touch-action:manipulation;display:flex;align-items:center;justify-content:center;user-select:none;}
+#mb-fire:active{background:rgba(255,30,30,0.65);}
+#mb-jump{position:absolute;bottom:116px;right:28px;width:54px;height:54px;border-radius:50%;background:rgba(0,200,255,0.22);border:2px solid #0cf;color:#0cf;font-size:0.6rem;font-weight:900;letter-spacing:2px;pointer-events:all;touch-action:manipulation;display:flex;align-items:center;justify-content:center;user-select:none;}
+#mb-jump:active{background:rgba(0,200,255,0.5);}
+#mb-sprint{position:absolute;bottom:116px;right:94px;width:54px;height:54px;border-radius:50%;background:rgba(255,220,0,0.18);border:2px solid #fd0;color:#fd0;font-size:0.55rem;font-weight:900;letter-spacing:1px;pointer-events:all;touch-action:manipulation;display:flex;align-items:center;justify-content:center;user-select:none;}
+#mb-sprint.active{background:rgba(255,220,0,0.45);border-color:#ff0;}
+#mb-slide{position:absolute;bottom:28px;right:116px;width:54px;height:54px;border-radius:50%;background:rgba(160,80,255,0.18);border:2px solid #a0f;color:#a0f;font-size:0.55rem;font-weight:900;letter-spacing:1px;pointer-events:all;touch-action:manipulation;display:flex;align-items:center;justify-content:center;user-select:none;}
+#mb-slide:active{background:rgba(160,80,255,0.45);}
+#mb-reload{position:absolute;bottom:28px;left:28px;width:48px;height:48px;border-radius:50%;background:rgba(255,200,0,0.18);border:2px solid #fc0;color:#fc0;font-size:0.55rem;font-weight:900;letter-spacing:1px;pointer-events:all;touch-action:manipulation;display:flex;align-items:center;justify-content:center;user-select:none;}
+#mb-grenade{position:absolute;bottom:28px;left:90px;width:48px;height:48px;border-radius:50%;background:rgba(0,255,100,0.18);border:2px solid #0f6;color:#0f6;font-size:0.55rem;font-weight:900;letter-spacing:1px;pointer-events:all;touch-action:manipulation;display:flex;align-items:center;justify-content:center;user-select:none;}
+#mb-shop{position:absolute;top:28px;left:28px;padding:6px 12px;background:rgba(255,215,0,0.18);border:2px solid #fd0;color:#fd0;font-size:0.55rem;font-weight:900;letter-spacing:2px;border-radius:4px;pointer-events:all;touch-action:manipulation;user-select:none;}
+/* Responsive HUD on small screens */
+@media(max-width:500px){
+  .wslot{width:28px;height:28px;font-size:0.85rem;}
+  #ammo-num{font-size:1.6rem;}
+  #kills-num{font-size:1.2rem;}
+  #credits-num{font-size:0.8rem;}
+  #xp-wrap{bottom:140px;}
+  #bottom-hud{bottom:170px;}
+  #grenade-wrap{bottom:168px;}
+}
+
 /* Admin */
 #admin-panel{position:fixed;top:50%;right:24px;transform:translateY(-50%);background:rgba(0,0,0,0.92);border:2px solid #f00;border-radius:6px;padding:16px 20px;z-index:60;display:none;flex-direction:column;gap:8px;min-width:200px;}
 #admin-panel h3{font-size:0.7rem;letter-spacing:4px;color:#f00;text-shadow:0 0 10px #f00;text-align:center;margin-bottom:4px;}
@@ -242,8 +276,25 @@ canvas{display:block;}
   <div id="xp-wrap"><div id="xp-level">LVL 1</div><div id="xp-bar-bg"><div id="xp-bar"></div></div></div>
   <div id="credits-wrap"><div id="credits-num">⬡ 0</div><div id="credits-label">CREDITS</div></div>
   <div id="grenade-wrap"><div id="grenade-label">GRENADES</div><div class="gren-dot" id="g0"></div><div class="gren-dot" id="g1"></div></div>
+  <div id="sprint-indicator">⚡ SPRINTING</div>
+  <div id="slide-bar-wrap"><div id="slide-bar-bg"><div id="slide-bar-fill" style="width:100%"></div></div></div>
   <div id="chat-wrap"></div>
   <div id="killfeed"></div>
+</div>
+
+<!-- Mobile controls -->
+<div id="mobile-controls">
+  <div id="joy-zone">
+    <div id="joy-base"><div id="joy-knob"></div></div>
+  </div>
+  <div id="aim-zone"></div>
+  <div id="mb-fire">FIRE</div>
+  <div id="mb-jump">JUMP</div>
+  <div id="mb-sprint">SPRINT</div>
+  <div id="mb-slide">SLIDE</div>
+  <div id="mb-reload">↻</div>
+  <div id="mb-grenade">💣</div>
+  <div id="mb-shop">⬡ SHOP</div>
 </div>
 
 <div id="hit-flash"></div>
@@ -625,6 +676,15 @@ let camYaw=0,camPitch=0,mouseDown=false,rightMouseDown=false,gameRunning=false;
 let shootCooldown=0,gunRecoil=0,gunAnim=0,autoFireTimer=0,isScoped=false;
 let myTeam='A',grenades=2,nearPowerUp=null;
 let killStreak=0;
+// Sprint / slide
+let isSprinting=false,isSliding=false,slideTimer=0,slideCooldown=0;
+const SLIDE_DURATION=0.75,SLIDE_COOLDOWN=0.9;
+let slideVelX=0,slideVelZ=0;
+// Mobile
+const isMobile=('ontouchstart' in window)||navigator.maxTouchPoints>0;
+let joyActive=false,joyStartX=0,joyStartY=0,joyDX=0,joyDY=0;
+let aimTouchId=null,aimLastX=0,aimLastY=0;
+let mbSprintHeld=false;
 let credits=0;
 const unlockedWeapons=new Set([0]); // start with AR only
 
@@ -1223,11 +1283,94 @@ window.addEventListener('keydown',e=>{
   ['Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','Digit7','Digit8','Digit9'].forEach((c,i)=>{if(e.code===c){if(i===8&&!adminUnlocked)return;switchWeapon(i);}});
   e.preventDefault();
 });
-window.addEventListener('keyup',e=>{keys[e.code]=false;if(e.code==='Tab') document.getElementById('scoreboard').style.display='none';});
+window.addEventListener('keyup',e=>{
+  keys[e.code]=false;
+  if(e.code==='Tab') document.getElementById('scoreboard').style.display='none';
+  if(e.code==='ShiftLeft'||e.code==='ShiftRight') isSprinting=false;
+});
+window.addEventListener('keydown',e=>{
+  if(chatOpen||!gameRunning) return;
+  if(e.code==='ShiftLeft'||e.code==='ShiftRight'){isSprinting=true;}
+  if((e.code==='ControlLeft'||e.code==='KeyC')&&!isSliding&&slideCooldown<=0) startSlide();
+},{capture:false});
 window.addEventListener('mousedown',e=>{if(e.button===0){mouseDown=true;if(gameRunning&&!chatOpen)tryShoot();}if(e.button===2){rightMouseDown=true;if(gameRunning&&WEAPONS[currentWeaponIdx].hasScope)setScope(true);}});
 window.addEventListener('mouseup',e=>{if(e.button===0)mouseDown=false;if(e.button===2){rightMouseDown=false;setScope(false);}});
 window.addEventListener('wheel',e=>{if(!gameRunning)return;switchWeapon((currentWeaponIdx+(e.deltaY>0?1:-1)+WEAPONS.length)%WEAPONS.length);},{passive:true});
 window.addEventListener('contextmenu',e=>e.preventDefault());
+
+function startSlide(){
+  if(!gameRunning||isSliding||slideCooldown>0) return;
+  const moving=keys['KeyW']||keys['KeyS']||keys['KeyA']||keys['KeyD']||joyActive;
+  if(!moving&&!isSprinting) return;
+  isSliding=true; slideTimer=SLIDE_DURATION; slideCooldown=SLIDE_COOLDOWN;
+  // capture current forward direction as slide velocity
+  const spd=(isSprinting?13:9);
+  slideVelX=-Math.sin(camYaw)*spd; slideVelZ=-Math.cos(camYaw)*spd;
+  playTone(180,'sawtooth',0.12,0.15);
+  document.getElementById('slide-bar-wrap').style.display='flex';
+  document.getElementById('slide-bar-fill').style.width='100%';
+}
+
+function setupMobileControls(){
+  if(!isMobile) return;
+  document.getElementById('mobile-controls').style.display='block';
+  document.getElementById('crosshair').style.left='50%';
+  document.getElementById('crosshair').style.top='50%';
+
+  // Joystick
+  const jZone=document.getElementById('joy-zone');
+  const jBase=document.getElementById('joy-base');
+  const jKnob=document.getElementById('joy-knob');
+  jZone.addEventListener('touchstart',e=>{
+    e.preventDefault();const t=e.changedTouches[0];
+    joyActive=true;joyStartX=t.clientX;joyStartY=t.clientY;
+    jBase.style.left=t.clientX+'px';jBase.style.top=t.clientY+'px';jBase.style.display='block';
+  },{passive:false});
+  jZone.addEventListener('touchmove',e=>{
+    e.preventDefault();const t=e.changedTouches[0];
+    const dx=t.clientX-joyStartX,dy=t.clientY-joyStartY;
+    const len=Math.sqrt(dx*dx+dy*dy),max=44;
+    const cx=Math.abs(dx)>max?Math.sign(dx)*max:dx;
+    const cy=Math.abs(dy)>max?Math.sign(dy)*max:dy;
+    jKnob.style.left=(50+cx/max*50)+'%';jKnob.style.top=(50+cy/max*50)+'%';
+    joyDX=cx/max;joyDY=cy/max;
+  },{passive:false});
+  const jEnd=()=>{joyActive=false;joyDX=0;joyDY=0;jBase.style.display='none';jKnob.style.left='50%';jKnob.style.top='50%';};
+  jZone.addEventListener('touchend',jEnd);jZone.addEventListener('touchcancel',jEnd);
+
+  // Aim drag (right half)
+  const aZone=document.getElementById('aim-zone');
+  aZone.addEventListener('touchstart',e=>{
+    e.preventDefault();const t=e.changedTouches[0];
+    aimTouchId=t.identifier;aimLastX=t.clientX;aimLastY=t.clientY;
+  },{passive:false});
+  aZone.addEventListener('touchmove',e=>{
+    e.preventDefault();
+    for(const t of e.changedTouches){
+      if(t.identifier!==aimTouchId) continue;
+      const dx=t.clientX-aimLastX,dy=t.clientY-aimLastY;
+      camYaw-=dx*0.004;camPitch-=dy*0.004;
+      camPitch=Math.max(-Math.PI/2.1,Math.min(Math.PI/2.1,camPitch));
+      aimLastX=t.clientX;aimLastY=t.clientY;
+    }
+  },{passive:false});
+  const aEnd=e=>{for(const t of e.changedTouches)if(t.identifier===aimTouchId)aimTouchId=null;};
+  aZone.addEventListener('touchend',aEnd);aZone.addEventListener('touchcancel',aEnd);
+
+  // Buttons
+  const mb=(id,fn)=>{
+    const el=document.getElementById(id);
+    el.addEventListener('touchstart',e=>{e.preventDefault();fn(true);},{passive:false});
+    el.addEventListener('touchend',e=>{e.preventDefault();fn(false);},{passive:false});
+  };
+  document.getElementById('mb-fire').addEventListener('touchstart',e=>{e.preventDefault();if(gameRunning)tryShoot();},{passive:false});
+  mb('mb-sprint',on=>{mbSprintHeld=on;isSprinting=on;document.getElementById('mb-sprint').classList.toggle('active',on);});
+  document.getElementById('mb-jump').addEventListener('touchstart',e=>{e.preventDefault();keys['ArrowUp']=true;setTimeout(()=>keys['ArrowUp']=false,80);},{passive:false});
+  document.getElementById('mb-slide').addEventListener('touchstart',e=>{e.preventDefault();startSlide();},{passive:false});
+  document.getElementById('mb-reload').addEventListener('touchstart',e=>{e.preventDefault();if(!reloading)startReload();},{passive:false});
+  document.getElementById('mb-grenade').addEventListener('touchstart',e=>{e.preventDefault();throwGrenade();},{passive:false});
+  document.getElementById('mb-shop').addEventListener('touchstart',e=>{e.preventDefault();shopOpen?closeShop():openShop();},{passive:false});
+}
 
 function setScope(on){
   isScoped=on&&WEAPONS[currentWeaponIdx].hasScope;
@@ -1482,6 +1625,8 @@ function startPvP(){
   WEAPONS.forEach((_,i)=>{wUpg[i]={damage:0,firerate:0,ammo:0,reload:0,spread:0,skin:0};});
   pUpg.speed=0;pUpg.health=0;
   weaponAmmos=WEAPONS.map(w=>w.maxAmmo);currentWeaponIdx=0;reloading=false;reloadProgress=0;velY=0;jumpCount=0;
+  isSprinting=false;isSliding=false;slideTimer=0;slideCooldown=0;slideVelX=0;slideVelZ=0;
+  setupMobileControls();
   const a=Math.random()*Math.PI*2,r=8+Math.random()*18;
   camera.position.set(Math.cos(a)*r,PLAYER_HEIGHT,Math.sin(a)*r);
   camYaw=Math.random()*Math.PI*2;camPitch=0;camera.fov=75;camera.updateProjectionMatrix();isScoped=false;
@@ -1532,21 +1677,42 @@ renderer.setAnimationLoop(()=>{
     if(reloadProgress>=1){weaponAmmos[currentWeaponIdx]=ew2.maxAmmo;reloading=false;document.getElementById('reload-bar-wrap').style.display='none';updateHUD();}
   }
 
+  // Slide timer
+  if(isSliding){
+    slideTimer-=dt; slideCooldown=Math.max(0,slideCooldown-dt);
+    const sb=document.getElementById('slide-bar-fill');
+    if(sb) sb.style.width=(slideTimer/SLIDE_DURATION*100)+'%';
+    if(slideTimer<=0){isSliding=false;document.getElementById('slide-bar-wrap').style.display='none';}
+  } else { if(slideCooldown>0) slideCooldown-=dt; }
+
   // Movement
-  const spd=7*(1+pUpg.speed*0.1)*dt;
+  const baseSpd=isSprinting&&!isSliding?12:7;
+  const spd=baseSpd*(1+pUpg.speed*0.1)*dt;
   const fwd=new THREE.Vector3(-Math.sin(camYaw),0,-Math.cos(camYaw));
   const right=new THREE.Vector3(Math.cos(camYaw),0,-Math.sin(camYaw));
   const mv=new THREE.Vector3();
-  if(keys['KeyW']) mv.addScaledVector(fwd,1);if(keys['KeyS']) mv.addScaledVector(fwd,-1);
-  if(keys['KeyA']||keys['ArrowLeft']) mv.addScaledVector(right,-1);if(keys['KeyD']||keys['ArrowRight']) mv.addScaledVector(right,1);
-  if(mv.length()) mv.normalize();
-  let nx=camera.position.x+mv.x*spd,nz=camera.position.z+mv.z*spd;
+  if(!isSliding){
+    if(keys['KeyW']||joyDY<-0.15) mv.addScaledVector(fwd,joyActive?Math.max(-joyDY,keys['KeyW']?1:0):1);
+    if(keys['KeyS']||joyDY>0.15) mv.addScaledVector(fwd,-(joyActive?Math.max(joyDY,keys['KeyS']?1:0):1));
+    if(keys['KeyA']||keys['ArrowLeft']||joyDX<-0.15) mv.addScaledVector(right,-(joyActive?Math.max(-joyDX,keys['KeyA']?1:0):1));
+    if(keys['KeyD']||keys['ArrowRight']||joyDX>0.15) mv.addScaledVector(right,(joyActive?Math.max(joyDX,keys['KeyD']?1:0):1));
+    if(mv.length()) mv.normalize();
+  }
+  let nx=camera.position.x+(isSliding?slideVelX*dt:mv.x*spd);
+  let nz=camera.position.z+(isSliding?slideVelZ*dt:mv.z*spd);
+  // Friction during slide
+  if(isSliding){slideVelX*=0.92;slideVelZ*=0.92;}
   if(!collidesWall(nx,camera.position.z)) camera.position.x=nx;
   if(!collidesWall(camera.position.x,nz)) camera.position.z=nz;
+  // Camera height: crouch during slide
+  const targetH=isSliding?0.6:PLAYER_HEIGHT;
+  camera.position.y+=(targetH-camera.position.y)*0.2;
+  // Sprint FOV
+  if(!isSliding){const targetFOV=isSprinting?80:70;camera.fov+=(targetFOV-camera.fov)*0.1;camera.updateProjectionMatrix();}
   // Double jump
-  if(keys['ArrowUp']&&jumpCount<2){velY=5.5;if(!onGround)jumpCount=2;onGround=false;}
+  if((keys['ArrowUp']||keys['Space'])&&jumpCount<2&&!isSliding){velY=5.5;if(!onGround)jumpCount=2;onGround=false;}
   velY-=14*dt;camera.position.y+=velY*dt;
-  if(camera.position.y<=PLAYER_HEIGHT){camera.position.y=PLAYER_HEIGHT;velY=0;onGround=true;jumpCount=0;}
+  if(camera.position.y<=targetH){camera.position.y=targetH;velY=0;onGround=true;jumpCount=0;}
   camera.rotation.order='YXZ';camera.rotation.y=camYaw;camera.rotation.x=camPitch;
 
   // Collect power-up with E
