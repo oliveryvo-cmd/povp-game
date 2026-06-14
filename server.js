@@ -8,6 +8,8 @@ const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 
 app.use(express.static(path.join(__dirname)));
+app.get('/', (req,res) => res.sendFile(path.join(__dirname,'index.html')));
+app.get('/index.html', (req,res) => res.sendFile(path.join(__dirname,'index.html')));
 
 const KILL_LIMIT = 15;
 let gameState = { players: {}, started: false, hostId: null, teamScores: {A:0, B:0} };
