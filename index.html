@@ -562,6 +562,55 @@ function collidesWall(x,z,r=0.4){
 const gunGroup=new THREE.Group();camera.add(gunGroup);
 const muzzleLight=new THREE.PointLight(0xffaa00,0,3);muzzleLight.position.set(0,-0.14,-0.76);gunGroup.add(muzzleLight);
 let currentGunMesh=null;
+
+// ── Laser sight dot ──────────────────────────────────────────────────────────
+const laserDotMesh=new THREE.Mesh(
+  new THREE.SphereGeometry(0.05,6,4),
+  new THREE.MeshBasicMaterial({color:0xff2200,transparent:true,opacity:0.95,blending:THREE.AdditiveBlending,depthWrite:false})
+);
+const laserDotRing=new THREE.Mesh(
+  new THREE.TorusGeometry(0.09,0.018,4,12),
+  new THREE.MeshBasicMaterial({color:0xff2200,transparent:true,opacity:0.45,blending:THREE.AdditiveBlending,depthWrite:false})
+);
+laserDotMesh.add(laserDotRing);
+const laserDotGlow=new THREE.PointLight(0xff2200,0.8,1.2);laserDotMesh.add(laserDotGlow);
+scene.add(laserDotMesh);
+const laserDotRaycaster=new THREE.Raycaster();
+const _laserDotFloorPlane=new THREE.Plane(new THREE.Vector3(0,1,0),0);
+
+// ── Laser beam pool ───────────────────────────────────────────────────────────
+const laserBeams=[];
+function spawnLaserBeam(from, to, col, coreR, life=0.14){
+  const dist=from.distanceTo(to);if(dist<0.01)return;
+  const mid=from.clone().lerp(to,0.5);
+
+  // Core: bright thin cylinder
+  const coreGeo=new THREE.CylinderGeometry(coreR,coreR*0.3,dist,5);
+  coreGeo.applyMatrix4(new THREE.Matrix4().makeRotationX(Math.PI/2));
+  const coreMat=new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:1,blending:THREE.AdditiveBlending,depthWrite:false});
+  const core=new THREE.Mesh(coreGeo,coreMat);
+  core.position.copy(mid);core.lookAt(to);scene.add(core);
+
+  // Bloom: wider softer halo around the beam
+  const bloomGeo=new THREE.CylinderGeometry(coreR*5,coreR*2,dist,5);
+  bloomGeo.applyMatrix4(new THREE.Matrix4().makeRotationX(Math.PI/2));
+  const bloomMat=new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:0.12,blending:THREE.AdditiveBlending,depthWrite:false});
+  const bloom=new THREE.Mesh(bloomGeo,bloomMat);
+  bloom.position.copy(mid);bloom.lookAt(to);scene.add(bloom);
+
+  // Impact flash at hit point
+  const flashGeo=new THREE.SphereGeometry(coreR*6,5,4);
+  const flashMat=new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:0.9,blending:THREE.AdditiveBlending,depthWrite:false});
+  const flash=new THREE.Mesh(flashGeo,flashMat);flash.position.copy(to);scene.add(flash);
+  const iLight=new THREE.PointLight(col,4,3);iLight.position.copy(to);scene.add(iLight);
+  setTimeout(()=>scene.remove(iLight),80);
+
+  // Muzzle flash glow
+  const mFlash=new THREE.PointLight(col,6,2.5);mFlash.position.copy(from);scene.add(mFlash);
+  setTimeout(()=>scene.remove(mFlash),55);
+
+  laserBeams.push({core,bloom,flash,coreMat,bloomMat,flashMat,life,maxLife:life});
+}
 function buildGunMesh(idx){
   if(currentGunMesh) gunGroup.remove(currentGunMesh);
   const g=new THREE.Group();g.position.set(0.22,-0.18,-0.38);
@@ -1215,37 +1264,29 @@ function spawnPlayerBullet(from,dir,weapon,isRocket=false){
   const col=weapon.bulletColor;
 
   if(isRocket){
-    // Rocket stays as a glowing sphere
-    const mesh=new THREE.Mesh(new THREE.SphereGeometry(weapon.bulletSize,6,4),new THREE.MeshBasicMaterial({color:col}));
+    // Rocket: moving sphere with exhaust glow
+    const mesh=new THREE.Mesh(
+      new THREE.SphereGeometry(weapon.bulletSize,8,6),
+      new THREE.MeshBasicMaterial({color:col,blending:THREE.AdditiveBlending,transparent:true,opacity:0.9,depthWrite:false})
+    );
     mesh.position.copy(from);
-    const glow=new THREE.PointLight(col,3,5);mesh.add(glow);scene.add(mesh);
+    const glow=new THREE.PointLight(col,4,6);mesh.add(glow);scene.add(mesh);
     rockets.push({mesh,traceMesh:null,traceMat:null,vel:d.clone().multiplyScalar(weapon.bulletSpeed),life:4,weapon,isRocket:true});
     return;
   }
 
-  // Laser bolt — thin elongated cylinder oriented along direction
-  const boltRadius=Math.max(weapon.bulletSize*0.22, 0.012);
-  const boltLen=Math.max(weapon.bulletSize*5, 0.38);
-  const boltMat=new THREE.MeshBasicMaterial({color:col});
-  const boltGeo=new THREE.CylinderGeometry(boltRadius,boltRadius*0.5,boltLen,5);
-  const bolt=new THREE.Mesh(boltGeo,boltMat);
-  // Orient cylinder (default up Y) along travel direction
-  bolt.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d);
-  bolt.position.copy(from);
-  scene.add(bolt);
-
-  // Glowing tail — longer, transparent, same color
-  const tailLen=boltLen*2.5;
-  const tailMat=new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:0.28});
-  const tail=new THREE.Mesh(new THREE.CylinderGeometry(boltRadius*0.6,0,tailLen,4),tailMat);
-  tail.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.clone().negate());
-  tail.position.copy(from);
-  scene.add(tail);
-
-  // Point light glow
-  const glow=new THREE.PointLight(col,2.5,4);bolt.add(glow);
-
-  playerBullets.push({mesh:bolt,traceMesh:tail,traceMat:tailMat,vel:d.clone().multiplyScalar(weapon.bulletSpeed),life:0.9,weapon,isRocket:false});
+  // ── Instant laser beam ────────────────────────────────────────────────────
+  // Raycast to find where the laser actually hits a surface
+  const lr=new THREE.Raycaster(from.clone(),d.clone());
+  const solidTargets=scene.children.filter(c=>
+    c.isMesh && c!==laserDotMesh &&
+    c.material && !(c.material.blending===THREE.AdditiveBlending)
+  );
+  const hits=lr.intersectObjects(solidTargets,false);
+  const hitPt=hits.length>0 ? hits[0].point.clone() : from.clone().addScaledVector(d,80);
+  const coreR=Math.max(weapon.bulletSize*0.18, 0.008);
+  spawnLaserBeam(from, hitPt, col, coreR);
+  // Instant — no entry in playerBullets needed
 }
 
 function explodeRocket(pos){
@@ -1447,6 +1488,7 @@ function startPvP(){
   playerBullets.length=0;rockets.length=0;particles.length=0;grenadeObjs.length=0;trailParticles.length=0;
   placedMines.forEach(m=>scene.remove(m.mesh));placedMines.length=0;
   railgunBeams.forEach(b=>{scene.remove(b.line);b.line.geometry.dispose();});railgunBeams.length=0;
+  laserBeams.forEach(b=>{scene.remove(b.core);scene.remove(b.bloom);scene.remove(b.flash);});laserBeams.length=0;
   credits=0;unlockedWeapons.clear();unlockedWeapons.add(0);
   updateCreditsHUD();
   crossX=innerWidth/2;crossY=innerHeight/2;lastMouseX=innerWidth/2;lastMouseY=innerHeight/2;
@@ -1545,7 +1587,44 @@ renderer.setAnimationLoop(()=>{
     if(p.life<=0){scene.remove(p.mesh);trailParticles.splice(i,1);}
   }
 
-  // Player bullets
+  // Laser beam fade (instant beams — just fade out)
+  for(let i=laserBeams.length-1;i>=0;i--){
+    const b=laserBeams[i];b.life-=dt;
+    const pct=Math.max(0,b.life/b.maxLife);
+    b.coreMat.opacity=pct;
+    b.bloomMat.opacity=pct*0.12;
+    b.flashMat.opacity=pct*0.9;
+    b.core.scale.set(pct*0.5+0.5,pct*0.5+0.5,1);
+    b.flash.scale.setScalar(1+(1-pct)*2);
+    if(b.life<=0){
+      scene.remove(b.core);scene.remove(b.bloom);scene.remove(b.flash);
+      b.core.geometry.dispose();b.bloom.geometry.dispose();b.flash.geometry.dispose();
+      b.coreMat.dispose();b.bloomMat.dispose();b.flashMat.dispose();
+      laserBeams.splice(i,1);
+    }
+  }
+
+  // Laser dot sight — raycast from center of screen to find surface
+  {
+    const w=WEAPONS[currentWeaponIdx];
+    laserDotRaycaster.setFromCamera(new THREE.Vector2(0,0),camera);
+    const solidTargets=scene.children.filter(c=>c.isMesh&&c!==laserDotMesh&&c.material&&!(c.material.blending===THREE.AdditiveBlending));
+    const dhits=laserDotRaycaster.intersectObjects(solidTargets,false);
+    if(dhits.length>0){
+      laserDotMesh.position.copy(dhits[0].point);
+      laserDotMesh.visible=true;
+      const wc=new THREE.Color(w.bulletColor);
+      laserDotMesh.material.color.set(wc);
+      laserDotRing.material.color.set(wc);
+      laserDotGlow.color.set(wc);
+      laserDotGlow.intensity=0.8+Math.sin(Date.now()*0.012)*0.3;
+      laserDotRing.rotation.z+=dt*3;
+    } else {
+      laserDotMesh.visible=false;
+    }
+  }
+
+  // Legacy moving bullets (now only used if anything still pushes to playerBullets)
   for(let i=playerBullets.length-1;i>=0;i--){
     const b=playerBullets[i];b.life-=dt;b.mesh.position.addScaledVector(b.vel,dt);
     if(b.traceMat) b.traceMat.opacity=Math.max(0,b.life*3);
