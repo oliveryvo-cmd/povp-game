@@ -156,6 +156,37 @@ canvas{display:block;}
 .adm-btn:hover{background:#f002;border-color:#f00;color:#fff;}
 .adm-btn.on{border-color:#f00;color:#f00;background:#f001;}
 #admin-badge{position:fixed;top:8px;left:50%;transform:translateX(-50%);font-size:0.55rem;letter-spacing:4px;color:#f00;z-index:61;display:none;text-shadow:0 0 8px #f00;}
+/* Credits HUD */
+#credits-wrap{position:absolute;top:52px;left:32px;}
+#credits-num{font-size:1.1rem;font-weight:900;color:#ffd700;text-shadow:0 0 14px #ffd700;letter-spacing:2px;}
+#credits-label{font-size:9px;letter-spacing:3px;color:#ffd7008;}
+#credits-earned{position:fixed;font-size:0.85rem;font-weight:900;letter-spacing:3px;color:#ffd700;text-shadow:0 0 12px #ffd700;pointer-events:none;z-index:46;animation:floatUp 1.1s forwards;}
+
+/* Locked slot */
+.wslot.locked{border-color:#555;border-style:dashed;opacity:0.25;cursor:not-allowed;filter:grayscale(1);}
+.wslot.locked::after{content:'🔒';position:absolute;font-size:0.6rem;}
+
+/* Shop overlay */
+#shop-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.94);z-index:36;display:none;flex-direction:column;align-items:center;justify-content:flex-start;padding:32px 20px;overflow-y:auto;gap:20px;}
+#shop-overlay h2{font-size:1.4rem;font-weight:900;letter-spacing:8px;color:#ffd700;text-shadow:0 0 24px #ffd700;}
+#shop-credits-bar{display:flex;align-items:center;gap:12px;font-size:0.8rem;font-weight:900;letter-spacing:4px;}
+#shop-credits-val{color:#ffd700;text-shadow:0 0 10px #ffd700;}
+#shop-hint{font-size:0.6rem;letter-spacing:3px;color:#555;}
+#shop-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;width:100%;max-width:860px;}
+.shop-card{background:rgba(255,255,255,0.04);border:1px solid #fff1;border-radius:8px;padding:18px 14px;display:flex;flex-direction:column;align-items:center;gap:8px;transition:all 0.15s;}
+.shop-card.owned{border-color:#0f04;}
+.shop-card.affordable{border-color:#ffd70044;}
+.shop-card.affordable:hover{border-color:#ffd700;background:rgba(255,215,0,0.07);transform:scale(1.02);}
+.shop-card .sc-icon{font-size:2.2rem;}
+.shop-card .sc-name{font-size:0.7rem;font-weight:900;letter-spacing:3px;text-align:center;}
+.shop-card .sc-desc{font-size:0.55rem;letter-spacing:1px;color:#888;text-align:center;line-height:1.5;}
+.shop-card .sc-price{font-size:0.75rem;font-weight:900;letter-spacing:2px;color:#ffd700;}
+.shop-card .sc-btn{padding:6px 18px;border:1px solid currentColor;background:transparent;font:700 0.65rem 'Courier New',monospace;letter-spacing:3px;cursor:pointer;border-radius:3px;transition:all 0.1s;margin-top:4px;}
+.shop-card .sc-btn.buy{color:#ffd700;border-color:#ffd70088;}
+.shop-card .sc-btn.buy:hover{background:#ffd70022;}
+.shop-card .sc-btn.cant{color:#444;border-color:#333;cursor:not-allowed;}
+.shop-card .sc-btn.owned{color:#0f0;border-color:#0f04;cursor:default;}
+
 /* Admin secret weapon slot */
 .wslot.admin-slot{display:none;border-style:dashed;}
 .wslot.admin-slot.revealed{display:flex;animation:rainbowBorder 1s linear infinite;}
@@ -209,6 +240,7 @@ canvas{display:block;}
   <div id="kills-wrap"><div id="kills-num">0/15</div><div id="kills-label">KILLS</div></div>
   <div id="players-wrap"><div id="players-num">1 ONLINE</div><div id="players-label">PLAYERS</div></div>
   <div id="xp-wrap"><div id="xp-level">LVL 1</div><div id="xp-bar-bg"><div id="xp-bar"></div></div></div>
+  <div id="credits-wrap"><div id="credits-num">⬡ 0</div><div id="credits-label">CREDITS</div></div>
   <div id="grenade-wrap"><div id="grenade-label">GRENADES</div><div class="gren-dot" id="g0"></div><div class="gren-dot" id="g1"></div></div>
   <div id="chat-wrap"></div>
   <div id="killfeed"></div>
@@ -292,8 +324,16 @@ canvas{display:block;}
     <button id="start-btn" class="lbtn" onclick="requestStart()" style="display:none">START GAME</button>
     <p id="controls-hint">MOUSE — AIM &nbsp;·&nbsp; CLICK/SPACE — SHOOT &nbsp;·&nbsp; R — RELOAD<br>
     WASD — MOVE &nbsp;·&nbsp; ↑ — JUMP (DOUBLE JUMP) &nbsp;·&nbsp; G — GRENADE<br>
-    1-8 — WEAPONS &nbsp;·&nbsp; TAB — SCOREBOARD &nbsp;·&nbsp; T — CHAT</p>
+    1-8 — WEAPONS &nbsp;·&nbsp; B — WEAPON SHOP &nbsp;·&nbsp; TAB — SCOREBOARD &nbsp;·&nbsp; T — CHAT</p>
   </div>
+</div>
+
+<!-- Weapon Shop -->
+<div id="shop-overlay">
+  <h2>⬡ WEAPON SHOP</h2>
+  <div id="shop-credits-bar"><span style="color:#aaa">YOUR CREDITS:</span><span id="shop-credits-val">0</span><span style="color:#ffd700">⬡</span></div>
+  <div id="shop-hint">[ B ] CLOSE &nbsp;·&nbsp; EARN CREDITS BY GETTING KILLS</div>
+  <div id="shop-grid"></div>
 </div>
 
 <!-- Death -->
@@ -536,6 +576,108 @@ let camYaw=0,camPitch=0,mouseDown=false,rightMouseDown=false,gameRunning=false;
 let shootCooldown=0,gunRecoil=0,gunAnim=0,autoFireTimer=0,isScoped=false;
 let myTeam='A',grenades=2,nearPowerUp=null;
 let killStreak=0;
+let credits=0;
+const unlockedWeapons=new Set([0]); // start with AR only
+
+const WEAPON_PRICES=[
+  0,    // AR — free
+  150,  // Shotgun
+  300,  // Plasma
+  600,  // Sniper
+  1000, // Rocket
+  1500, // Railgun
+  800,  // Flamethrower
+  500,  // Mine Launcher
+  -1,   // Obliterator — admin only, not purchasable
+];
+
+const WEAPON_DESCS=[
+  'Full auto starter rifle. Reliable and accurate.',
+  'Close-range devastation. 7 pellets per shot.',
+  'High-damage energy bursts. Great at mid range.',
+  'One-shot potential. Long range scope included.',
+  'Explosive splash damage. Slow but deadly.',
+  'Instant hitscan laser. Visible to all players.',
+  'Close-range DPS king. Burns enemies over time.',
+  'Place sticky mines on the floor for ambushes.',
+  '',
+];
+
+function earnCredits(amount, worldPos){
+  credits+=amount;
+  updateCreditsHUD();
+  if(worldPos){
+    const v=worldPos.clone();v.project(camera);
+    if(v.z<1){
+      const x=(v.x*0.5+0.5)*innerWidth, y=(-v.y*0.5+0.5)*innerHeight;
+      const el=document.createElement('div');
+      el.className='credits-earned';
+      el.style.cssText=`position:fixed;left:${x}px;top:${y}px;font-size:0.8rem;font-weight:900;letter-spacing:3px;color:#ffd700;text-shadow:0 0 12px #ffd700;pointer-events:none;z-index:46;animation:floatUp 1.1s forwards;transform:translateX(-50%);`;
+      el.textContent='+'+amount+'⬡';
+      document.body.appendChild(el);
+      setTimeout(()=>el.remove(),1100);
+    }
+  }
+}
+
+function updateCreditsHUD(){
+  document.getElementById('credits-num').textContent='⬡ '+credits;
+  document.getElementById('shop-credits-val').textContent=credits;
+  // refresh slot lock states
+  updateSlotLockStates();
+}
+
+function updateSlotLockStates(){
+  document.querySelectorAll('.wslot').forEach((el,i)=>{
+    if(i>=8) return; // admin slot handled separately
+    const locked=!unlockedWeapons.has(i)&&!WEAPONS[i]?.adminOnly;
+    el.classList.toggle('locked',locked);
+    if(!locked&&i<8) el.textContent=WEAPONS[i]?.icon||'?';
+    else if(locked) el.textContent='🔒';
+  });
+}
+
+let shopOpen=false;
+function openShop(){
+  if(!gameRunning) return;
+  shopOpen=true; gameRunning=false;
+  renderShop();
+  document.getElementById('shop-overlay').style.display='flex';
+}
+function closeShop(){
+  shopOpen=false; gameRunning=true;
+  document.getElementById('shop-overlay').style.display='none';
+}
+function renderShop(){
+  document.getElementById('shop-credits-val').textContent=credits;
+  const grid=document.getElementById('shop-grid');
+  grid.innerHTML='';
+  WEAPONS.slice(0,8).forEach((w,i)=>{
+    const owned=unlockedWeapons.has(i);
+    const price=WEAPON_PRICES[i];
+    const canBuy=!owned&&credits>=price;
+    const card=document.createElement('div');
+    card.className='shop-card'+(owned?' owned':canBuy?' affordable':'');
+    card.innerHTML=`
+      <div class="sc-icon">${w.icon}</div>
+      <div class="sc-name" style="color:${w.color}">${w.name}</div>
+      <div class="sc-desc">${WEAPON_DESCS[i]}</div>
+      ${price===0?'':`<div class="sc-price">${owned?'OWNED':'⬡ '+price}</div>`}
+      <button class="sc-btn ${owned?'owned':canBuy?'buy':'cant'}" ${owned||!canBuy?'disabled':''} onclick="buyWeapon(${i})">
+        ${owned?'✓ UNLOCKED':price===0?'FREE':canBuy?'BUY':'LOCKED'}
+      </button>`;
+    grid.appendChild(card);
+  });
+}
+function buyWeapon(idx){
+  if(unlockedWeapons.has(idx)||credits<WEAPON_PRICES[idx]) return;
+  credits-=WEAPON_PRICES[idx];
+  unlockedWeapons.add(idx);
+  updateCreditsHUD();
+  renderShop();
+  showBanner(WEAPONS[idx].name+' UNLOCKED!', WEAPONS[idx].color);
+  playTone(880,'sine',0.08,0.2);setTimeout(()=>playTone(1100,'sine',0.1,0.2),80);setTimeout(()=>playTone(1320,'sine',0.12,0.2),160);
+}
 const placedMines=[];  // {mesh, glowLight, x, z, ownerId}
 const railgunBeams=[];  // {line, life}
 
@@ -721,9 +863,10 @@ function connectLobby(){
   socket.on('hit_confirmed',({targetId,damage,isHeadshot})=>{
     SFX.hit();crossEl.classList.add('hit');setTimeout(()=>crossEl.classList.remove('hit'),120);
     const op=otherPlayers[targetId];
-    if(op) {
+    if(op){
       spawnParticles(op.group.position.clone().add(new THREE.Vector3(0,1,0)),isHeadshot?0xff0000:0xff6600,isHeadshot?12:6);
       spawnDmgNumber(op.group.position.clone().add(new THREE.Vector3(0,1.8,0)),damage,isHeadshot);
+      if(isHeadshot) earnCredits(50, op.group.position.clone().add(new THREE.Vector3(0,2.2,0)));
     }
   });
   socket.on('player_killed',({killerId,victimId,killerName,victimName,streak,scores,teamScores:ts})=>{
@@ -734,6 +877,10 @@ function connectLobby(){
     if(killerId===myId){
       kills++;killStreak++;gainXP(50+(killStreak>2?25:0));
       handleKillStreak(killStreak);
+      const baseCredits=100;
+      const streakBonus=killStreak>1?killStreak*20:0;
+      const op=otherPlayers[victimId];
+      earnCredits(baseCredits+streakBonus, op?.group.position.clone().add(new THREE.Vector3(0,2,0)));
     }
     if(victimId===myId){killStreak=0;showDeathScreen('KILLED BY '+killerName);}
     updateHUD();updateScoreboardData();updateTeamScore();
@@ -1018,6 +1165,7 @@ window.addEventListener('keydown',e=>{
   if(e.code==='Tab'){e.preventDefault();document.getElementById('scoreboard').style.display='block';return;}
   if(e.code==='Backquote'){if(adminUnlocked){adminOpen=!adminOpen;document.getElementById('admin-panel').style.display=adminOpen?'flex':'none';}return;}
   if(e.code==='KeyT'){e.preventDefault();openChat();return;}
+  if(e.code==='KeyB'){e.preventDefault();shopOpen?closeShop():openShop();return;}
   if(!gameRunning) return;
   const w=WEAPONS[currentWeaponIdx];
   if(e.code==='KeyR'&&!reloading&&weaponAmmos[currentWeaponIdx]<effWeapon(currentWeaponIdx).maxAmmo) startReload();
@@ -1040,6 +1188,12 @@ function setScope(on){
 function switchWeapon(idx){
   if(idx===currentWeaponIdx) return;
   if(WEAPONS[idx]?.adminOnly&&!adminUnlocked) return;
+  if(idx<8&&!unlockedWeapons.has(idx)){
+    const price=WEAPON_PRICES[idx];
+    showBanner('LOCKED — NEED ⬡'+price,'#ffd700');
+    playTone(200,'square',0.06,0.1);
+    return;
+  }
   setScope(false);currentWeaponIdx=idx;reloading=false;reloadProgress=0;
   document.getElementById('reload-bar-wrap').style.display='none';buildGunMesh(idx);updateHUD();
   const isObl=WEAPONS[idx]?.isObliterator;
@@ -1266,6 +1420,8 @@ function startPvP(){
   playerBullets.length=0;rockets.length=0;particles.length=0;grenadeObjs.length=0;trailParticles.length=0;
   placedMines.forEach(m=>scene.remove(m.mesh));placedMines.length=0;
   railgunBeams.forEach(b=>{scene.remove(b.line);b.line.geometry.dispose();});railgunBeams.length=0;
+  credits=0;unlockedWeapons.clear();unlockedWeapons.add(0);
+  updateCreditsHUD();
   crossX=innerWidth/2;crossY=innerHeight/2;lastMouseX=innerWidth/2;lastMouseY=innerHeight/2;
   buildGunMesh(0);
   document.querySelectorAll('.wslot').forEach((el,i)=>{el.classList.toggle('active',i===0);el.style.color=WEAPONS[i].color;});
