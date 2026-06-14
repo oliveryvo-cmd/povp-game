@@ -261,7 +261,8 @@ canvas{display:block;}
         <div class="wslot" id="ws5" style="color:#88ffff">⚡</div>
         <div class="wslot" id="ws6" style="color:#ff6600">🔥</div>
         <div class="wslot" id="ws7" style="color:#aaffaa">💣</div>
-        <div class="wslot admin-slot" id="ws8" style="color:#fff">☠</div>
+        <div class="wslot" id="ws8" style="color:#aaffff">🔪</div>
+        <div class="wslot admin-slot" id="ws9" style="color:#fff">☠</div>
       </div>
     </div>
     <div id="ammo-wrap">
@@ -552,7 +553,17 @@ const WEAPONS=[
       const gl=new THREE.PointLight(nc,0.5,1.5);gl.position.set(0,0,-0.6);g.add(gl);
     }
   },
-  // ── THE OBLITERATOR (admin only, index 8) ───────────────────────────────────
+  // ── KNIFE (index 8, always unlocked) ────────────────────────────────────────
+  {name:'KNIFE',icon:'🔪',color:'#aaffff',ammo:Infinity,maxAmmo:Infinity,reloadTime:0,fireRate:0.4,auto:false,damage:80,headshotMult:3,spread:0,bulletSpeed:0,bulletColor:0xaaffff,bulletSize:0,bulletCount:0,recoil:0.6,isMelee:true,meleeRange:2.2,
+    makeGun(g){
+      const handle=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.04,0.18),new THREE.MeshLambertMaterial({color:0x3a2010}));handle.position.set(0,-0.01,0.08);g.add(handle);
+      const guard=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.025,0.025),new THREE.MeshLambertMaterial({color:0x888888}));guard.position.set(0,-0.01,-0.02);g.add(guard);
+      const blade=new THREE.Mesh(new THREE.BoxGeometry(0.015,0.03,0.32),new THREE.MeshLambertMaterial({color:0xddddff,emissive:0x223344,emissiveIntensity:0.3}));blade.position.set(0,-0.005,-0.2);g.add(blade);
+      const tip=new THREE.Mesh(new THREE.ConeGeometry(0.015,0.06,4),new THREE.MeshLambertMaterial({color:0xffffff}));tip.rotation.x=Math.PI/2;tip.position.set(0,-0.005,-0.39);g.add(tip);
+      const edge=new THREE.Mesh(new THREE.BoxGeometry(0.002,0.002,0.32),new THREE.MeshBasicMaterial({color:0xaaffff}));edge.position.set(0.008,-0.018,-0.2);g.add(edge);
+    }
+  },
+  // ── THE OBLITERATOR (admin only, index 9) ───────────────────────────────────
   {name:'THE OBLITERATOR',icon:'☠',color:'#ffffff',ammo:Infinity,maxAmmo:Infinity,reloadTime:0,fireRate:0.22,auto:true,damage:9999,headshotMult:1,spread:0,bulletSpeed:999,bulletColor:0xffffff,bulletSize:0.05,bulletCount:1,recoil:0.05,isObliterator:true,adminOnly:true,
     makeGun(g){
       const body=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.1,0.55),new THREE.MeshLambertMaterial({color:0xffd700,emissive:0x886600,emissiveIntensity:0.6}));g.add(body);
@@ -697,6 +708,7 @@ const WEAPON_PRICES=[
   1500, // Railgun
   800,  // Flamethrower
   500,  // Mine Launcher
+  0,    // Knife — always unlocked, free
   -1,   // Obliterator — admin only, not purchasable
 ];
 
@@ -709,6 +721,7 @@ const WEAPON_DESCS=[
   'Instant hitscan laser. Visible to all players.',
   'Close-range DPS king. Burns enemies over time.',
   'Place sticky mines on the floor for ambushes.',
+  'Instant kill up close. Silent and deadly. Press V.',
   '',
 ];
 
@@ -891,9 +904,10 @@ function doPrestige(){
 }
 
 function equipObliterator(){
+  if(!adminUnlocked) return;
   if(!adminUnlocked||!gameRunning) return;
-  document.getElementById('ws8').classList.add('revealed');
-  switchWeapon(8);
+  document.getElementById('ws9').classList.add('revealed');
+  switchWeapon(9);
   document.getElementById('obliterator-crosshair').style.display='block';
   document.getElementById('crosshair').style.display='none';
   showBanner('☠ THE OBLITERATOR ☠','#fff');
@@ -909,7 +923,7 @@ function adminSnap(){
   // hit every enemy
   targets.forEach(op=>{
     spawnParticles(op.group.position.clone().add(new THREE.Vector3(0,1,0)),0xffffff,30,10);
-    if(socket) socket.emit('shoot',{targetId:Object.entries(otherPlayers).find(([,v])=>v===op)[0],damage:9999,isHeadshot:false,weapon:8});
+    if(socket) socket.emit('shoot',{targetId:Object.entries(otherPlayers).find(([,v])=>v===op)[0],damage:9999,isHeadshot:false,weapon:9});
   });
   playTone(55,'sawtooth',1.2,0.6);setTimeout(()=>playTone(110,'square',0.8,0.5),200);setTimeout(()=>playTone(220,'sine',0.6,0.4),500);
   showBanner('✦ SNAP ✦','#fff');
@@ -1280,7 +1294,8 @@ window.addEventListener('keydown',e=>{
   if(e.code==='KeyR'&&!reloading&&weaponAmmos[currentWeaponIdx]<effWeapon(currentWeaponIdx).maxAmmo) startReload();
   if(e.code==='Space') tryShoot();
   if(e.code==='KeyG') throwGrenade();
-  ['Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','Digit7','Digit8','Digit9'].forEach((c,i)=>{if(e.code===c){if(i===8&&!adminUnlocked)return;switchWeapon(i);}});
+  ['Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','Digit7','Digit8','Digit9'].forEach((c,i)=>{if(e.code===c){if(i===9&&!adminUnlocked)return;switchWeapon(i);}});
+  if(e.code==='KeyV') switchWeapon(8);
   e.preventDefault();
 });
 window.addEventListener('keyup',e=>{
@@ -1391,7 +1406,7 @@ function switchWeapon(idx){
   const isObl=WEAPONS[idx]?.isObliterator;
   document.getElementById('obliterator-crosshair').style.display=isObl?'block':'none';
   document.getElementById('crosshair').style.display=isObl?'none':'block';
-  if(isObl) document.getElementById('ws8').classList.add('revealed');
+  if(isObl) document.getElementById('ws9').classList.add('revealed');
   document.querySelectorAll('.wslot').forEach((el,i)=>{
     if(i===8){el.classList.toggle('active',i===idx);return;}
     el.classList.toggle('active',i===idx);el.style.color=WEAPONS[i]?.color||'#fff';
@@ -1473,6 +1488,34 @@ function placeMine(){
 function tryShoot(){
   if(shootCooldown>0||reloading||chatOpen) return;
   const w=WEAPONS[currentWeaponIdx],ew=effWeapon(currentWeaponIdx);
+  if(w.isMelee){
+    shootCooldown=w.fireRate; gunRecoil=w.recoil;
+    // Knife lunge animation
+    gunGroup.position.z=-0.22;
+    setTimeout(()=>{gunGroup.position.z=0;},180);
+    playTone(800,'sawtooth',0.08,0.06);
+    // Melee hit check — raycast forward, short range
+    const nx=(crossX/innerWidth)*2-1,ny=-(crossY/innerHeight)*2+1;
+    raycaster.setFromCamera({x:nx,y:ny},camera);
+    const dir=raycaster.ray.direction.clone().normalize();
+    const origin=camera.position.clone();
+    const hitTargets=[];
+    for(const [pid,op] of Object.entries(otherPlayers)){
+      if(!op.group.visible) continue;
+      hitTargets.push({mesh:op.body,id:pid,isHead:false},{mesh:op.head,id:pid,isHead:true});
+    }
+    const rk=new THREE.Raycaster();rk.set(origin,dir);rk.far=w.meleeRange;
+    const hits=rk.intersectObjects(hitTargets.map(t=>t.mesh));
+    if(hits.length&&socket){
+      const ht=hitTargets.find(t=>t.mesh===hits[0].object);
+      const dmg=ht.isHead?Math.round(w.damage*w.headshotMult):w.damage;
+      socket.emit('shoot',{targetId:ht.id,damage:dmg,isHeadshot:ht.isHead,weapon:8});
+      spawnLaserBeam(origin,hits[0].point,0xaaffff,0.03,0.1);
+      showBanner(ht.isHead?'🔪 BACKSTAB!':'🔪 SLASH!','#aaffff');
+    }
+    updateHUD(); return;
+  }
+
   if(weaponAmmos[currentWeaponIdx]<=0){SFX.empty();return;}
   if(!adminFlags.ammo) weaponAmmos[currentWeaponIdx]--;
 
@@ -1499,7 +1542,7 @@ function tryShoot(){
     const hits=rg2.intersectObjects(hitTargets.map(t=>t.mesh));
     if(hits.length&&socket){
       const ht=hitTargets.find(t=>t.mesh===hits[0].object);
-      socket.emit('shoot',{targetId:ht.id,damage:9999,isHeadshot:false,weapon:8});
+      socket.emit('shoot',{targetId:ht.id,damage:9999,isHeadshot:false,weapon:9});
       const op=otherPlayers[ht.id];if(op){spawnParticles(op.group.position.clone().add(new THREE.Vector3(0,1,0)),bc,25,8);spawnDmgNumber(op.group.position.clone().add(new THREE.Vector3(0,1.8,0)),'☠',false);}
     }
     if(socket) socket.emit('railgun_beam',{from:{x:muzzle.x,y:muzzle.y,z:muzzle.z},dir:{x:dir.x,y:dir.y,z:dir.z},len:80});
@@ -1512,6 +1555,32 @@ function tryShoot(){
 
   // Mine: place on ground instead of firing a bullet
   if(w.isMine){shootCooldown=ew.fireRate;gunRecoil=w.recoil;placeMine();updateHUD();if(weaponAmmos[currentWeaponIdx]<=0)startReload();return;}
+
+  // Melee: instant close-range slash
+  if(w.isMelee){
+    shootCooldown=ew.fireRate; gunRecoil=w.recoil;
+    gunGroup.rotation.x=-0.9; setTimeout(()=>gunGroup.rotation.x=0,200);
+    const slashFlash=document.createElement('div');
+    slashFlash.style.cssText='position:fixed;inset:0;pointer-events:none;background:rgba(170,255,255,0.18);z-index:9999;';
+    document.body.appendChild(slashFlash); setTimeout(()=>slashFlash.remove(),100);
+    playTone(900,'sawtooth',0.1,0.08); playTone(500,'square',0.06,0.12,40);
+    const nx2=(crossX/innerWidth)*2-1,ny2=-(crossY/innerHeight)*2+1;
+    raycaster.setFromCamera({x:nx2,y:ny2},camera);
+    const dir2=raycaster.ray.direction.clone().normalize();
+    const hitTargets2=[];
+    for(const [pid,op] of Object.entries(otherPlayers)){if(!op.group.visible)continue;hitTargets2.push({mesh:op.body,id:pid,isHead:false},{mesh:op.head,id:pid,isHead:true});}
+    const rg3=new THREE.Raycaster();rg3.set(raycaster.ray.origin,dir2);rg3.far=w.meleeRange;
+    const hits3=rg3.intersectObjects(hitTargets2.map(t=>t.mesh));
+    if(hits3.length&&socket){
+      const ht=hitTargets2.find(t=>t.mesh===hits3[0].object);
+      const dmg=adminFlags.oneshot?9999:Math.round(ew.damage*(ht.isHead?ew.headshotMult:1));
+      if(ht.isHead)gainXP(25);
+      socket.emit('shoot',{targetId:ht.id,damage:dmg,isHeadshot:ht.isHead,weapon:currentWeaponIdx});
+      const op=otherPlayers[ht.id];
+      if(op){spawnParticles(op.group.position.clone().add(new THREE.Vector3(0,1,0)),0xaaffff,10,3);spawnDmgNumber(op.group.position.clone().add(new THREE.Vector3(0,1.8,0)),dmg,ht.isHead);}
+    }
+    return;
+  }
 
   const sfxKeys=['pistol','shotgun','plasma','sniper','rocket','railgun','flame','mine'];
   SFX[sfxKeys[currentWeaponIdx]]?.();
@@ -1634,7 +1703,7 @@ function startPvP(){
   placedMines.forEach(m=>scene.remove(m.mesh));placedMines.length=0;
   railgunBeams.forEach(b=>{scene.remove(b.line);b.line.geometry.dispose();});railgunBeams.length=0;
   laserBeams.forEach(b=>{scene.remove(b.core);scene.remove(b.bloom);scene.remove(b.flash);});laserBeams.length=0;
-  credits=0;unlockedWeapons.clear();unlockedWeapons.add(0);
+  credits=0;unlockedWeapons.clear();unlockedWeapons.add(0);unlockedWeapons.add(8);
   updateCreditsHUD();
   crossX=innerWidth/2;crossY=innerHeight/2;lastMouseX=innerWidth/2;lastMouseY=innerHeight/2;
   buildGunMesh(0);
