@@ -251,6 +251,28 @@ canvas{display:block;}
 </style>
 </head>
 <body>
+<!-- FirstLaser Studios Splash -->
+<div id="splash" style="position:fixed;inset:0;background:#000;z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;">
+  <div id="splash-laser" style="width:0px;height:3px;background:linear-gradient(90deg,#00ffff,#ffffff);box-shadow:0 0 18px #00ffff,0 0 40px #00ffff;border-radius:2px;transition:width 0.8s cubic-bezier(.4,0,.2,1);"></div>
+  <div id="splash-text" style="font-family:'Courier New',monospace;font-size:clamp(1.2rem,5vw,2.2rem);font-weight:900;letter-spacing:10px;color:#00ffff;text-shadow:0 0 30px #00ffff;opacity:0;transition:opacity 0.6s;margin-top:8px;">FIRSTLASER STUDIOS</div>
+  <div id="splash-sub" style="font-family:'Courier New',monospace;font-size:0.55rem;letter-spacing:6px;color:#336;opacity:0;transition:opacity 0.6s;margin-top:-4px;">PRESENTS</div>
+</div>
+<script>
+(function(){
+  setTimeout(()=>{
+    document.getElementById('splash-laser').style.width='min(420px,80vw)';
+  },200);
+  setTimeout(()=>{
+    document.getElementById('splash-text').style.opacity='1';
+    document.getElementById('splash-sub').style.opacity='1';
+  },900);
+  setTimeout(()=>{
+    const s=document.getElementById('splash');
+    s.style.transition='opacity 0.7s';s.style.opacity='0';
+    setTimeout(()=>s.style.display='none',700);
+  },2800);
+})();
+</script>
 
 <div id="crosshair">
   <svg width="28" height="28" viewBox="0 0 28 28">
