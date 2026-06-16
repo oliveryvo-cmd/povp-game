@@ -638,15 +638,16 @@ const WEAPONS=[
       const gl=new THREE.PointLight(nc,0,2.5);gl.position.set(0,0,-0.6);g.add(gl);g._flameLight=gl;
     }
   },
-  // ── Mine Launcher ─────────────────────────────────────────────────────────────
-  {name:'MINE LAUNCHER',icon:'💣',color:'#aaffaa',ammo:6,maxAmmo:6,reloadTime:2.5,fireRate:0.8,auto:false,damage:110,headshotMult:1.0,spread:0.02,bulletSpeed:18,bulletColor:0x44ff44,bulletSize:0.1,bulletCount:1,recoil:0.3,isMine:true,
+  // ── Grenade Launcher ─────────────────────────────────────────────────────────
+  {name:'GRENADE LAUNCHER',icon:'💥',color:'#aaff44',ammo:6,maxAmmo:6,reloadTime:2.2,fireRate:0.9,auto:false,damage:90,headshotMult:1.0,spread:0.01,bulletSpeed:22,bulletColor:0x88ff22,bulletSize:0.12,bulletCount:1,recoil:0.5,isGrenadeLauncher:true,splashRadius:4.5,splashDamage:70,
     makeGun(g){
-      const nc=wUpg[7]?.skin>0?SKIN_COLORS[wUpg[7].skin]:0xaaffaa;
-      const body=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.12,0.44),new THREE.MeshLambertMaterial({color:0x1a2a0a}));body.position.set(0,0,0);g.add(body);
-      const barrel=new THREE.Mesh(new THREE.CylinderGeometry(0.055,0.055,0.38,8),new THREE.MeshLambertMaterial({color:0x0f1f05}));barrel.rotation.x=Math.PI/2;barrel.position.set(0,0.02,-0.38);g.add(barrel);
-      const drum=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.07,0.12,8),new THREE.MeshLambertMaterial({color:0x162605}));drum.rotation.x=Math.PI/2;drum.position.set(0,-0.02,-0.06);g.add(drum);
-      const rim=new THREE.Mesh(new THREE.TorusGeometry(0.055,0.008,6,10),new THREE.MeshBasicMaterial({color:nc}));rim.position.set(0,0.02,-0.57);g.add(rim);
-      const gl=new THREE.PointLight(nc,0.5,1.5);gl.position.set(0,0,-0.6);g.add(gl);
+      const nc=wUpg[7]?.skin>0?SKIN_COLORS[wUpg[7].skin]:0xaaff44;
+      const body=new THREE.Mesh(new THREE.BoxGeometry(0.09,0.11,0.5),new THREE.MeshLambertMaterial({color:0x1a2a00}));body.position.set(0,0,0);g.add(body);
+      const barrel=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.06,0.44,8),new THREE.MeshLambertMaterial({color:0x0a1a00}));barrel.rotation.x=Math.PI/2;barrel.position.set(0,0.02,-0.42);g.add(barrel);
+      const rim=new THREE.Mesh(new THREE.TorusGeometry(0.06,0.01,6,10),new THREE.MeshBasicMaterial({color:nc}));rim.position.set(0,0.02,-0.64);g.add(rim);
+      const grip=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.15,0.08),new THREE.MeshLambertMaterial({color:0x0f1a00}));grip.position.set(0,-0.13,0.04);g.add(grip);
+      const drum=new THREE.Mesh(new THREE.CylinderGeometry(0.065,0.065,0.1,8),new THREE.MeshLambertMaterial({color:0x162600}));drum.rotation.x=Math.PI/2;drum.position.set(0,-0.01,-0.08);g.add(drum);
+      const gl=new THREE.PointLight(nc,0.6,2);gl.position.set(0,0,-0.65);g.add(gl);
     }
   },
   // ── KNIFE (index 8, always unlocked) ────────────────────────────────────────
@@ -857,7 +858,7 @@ const WEAPON_PRICES=[
   1000, // Rocket
   1500, // Railgun
   800,  // Flamethrower
-  500,  // Mine Launcher
+  500,  // Grenade Launcher
   0,    // Knife — always unlocked, free
   -1,   // Obliterator — admin only, not purchasable
 ];
@@ -870,7 +871,7 @@ const WEAPON_DESCS=[
   'Explosive splash damage. Slow but deadly.',
   'Instant hitscan laser. Visible to all players.',
   'Close-range DPS king. Burns enemies over time.',
-  'Place sticky mines on the floor for ambushes.',
+  'Bouncing grenade with splash damage. Bounces 3x.',
   'Instant kill up close. Silent and deadly. Press V.',
   '',
 ];
@@ -950,7 +951,8 @@ function buyWeapon(idx){
   showBanner(WEAPONS[idx].name+' UNLOCKED!', WEAPONS[idx].color);
   playTone(880,'sine',0.08,0.2);setTimeout(()=>playTone(1100,'sine',0.1,0.2),80);setTimeout(()=>playTone(1320,'sine',0.12,0.2),160);
 }
-const placedMines=[];  // {mesh, glowLight, x, z, ownerId}
+const placedMines=[];  // kept for legacy cleanup
+const launcherGrenades=[];  // {mesh, vel, life, bounces}
 const railgunBeams=[];  // {line, life}
 
 // ── Upgrades / XP ─────────────────────────────────────────────────────────────
@@ -1730,8 +1732,17 @@ function tryShoot(){
     return;
   }
 
-  // Mine: place on ground instead of firing a bullet
-  if(w.isMine){shootCooldown=ew.fireRate;gunRecoil=w.recoil;placeMine();updateHUD();if(weaponAmmos[currentWeaponIdx]<=0)startReload();return;}
+  // Grenade Launcher: fire a bouncing grenade
+  if(w.isGrenadeLauncher){
+    shootCooldown=ew.fireRate;gunRecoil=w.recoil;
+    const muzzlePos=muzzle.clone();
+    const grenMesh=new THREE.Mesh(new THREE.SphereGeometry(0.14,8,8),new THREE.MeshLambertMaterial({color:0x88ff22}));
+    grenMesh.position.copy(muzzlePos);scene.add(grenMesh);
+    const grenLight=new THREE.PointLight(0xaaff44,1.5,4);grenMesh.add(grenLight);
+    launcherGrenades.push({mesh:grenMesh,vel:dir.clone().multiplyScalar(ew.bulletSpeed),life:3.5,bounces:0});
+    SFX.shoot();muzzleLight.intensity=4;gunRecoil=w.recoil;
+    updateHUD();if(weaponAmmos[currentWeaponIdx]<=0)startReload();return;
+  }
 
   // Melee: instant close-range slash
   if(w.isMelee){
@@ -1878,6 +1889,7 @@ function startPvP(){
   camYaw=Math.random()*Math.PI*2;camPitch=0;camera.fov=75;camera.updateProjectionMatrix();isScoped=false;
   playerBullets.length=0;rockets.length=0;particles.length=0;grenadeObjs.length=0;trailParticles.length=0;
   placedMines.forEach(m=>scene.remove(m.mesh));placedMines.length=0;
+  launcherGrenades.forEach(g=>scene.remove(g.mesh));launcherGrenades.length=0;
   railgunBeams.forEach(b=>{scene.remove(b.line);b.line.geometry.dispose();});railgunBeams.length=0;
   laserBeams.forEach(b=>{scene.remove(b.core);scene.remove(b.bloom);scene.remove(b.flash);});laserBeams.length=0;
   credits=0;unlockedWeapons.clear();unlockedWeapons.add(0);unlockedWeapons.add(8);
@@ -2119,6 +2131,44 @@ renderer.setAnimationLoop(()=>{
           scene.remove(m.mesh);placedMines.splice(i,1);break;
         }
       }
+    }
+  }
+
+  // Launcher grenades: bounce up to 3 times then explode
+  for(let i=launcherGrenades.length-1;i>=0;i--){
+    const lg=launcherGrenades[i];
+    lg.life-=dt;lg.vel.y-=20*dt;
+    lg.mesh.position.addScaledVector(lg.vel,dt);
+    lg.mesh.rotation.x+=dt*10;lg.mesh.rotation.z+=dt*7;
+    // Floor bounce
+    if(lg.mesh.position.y<0.14&&lg.bounces<3){
+      lg.mesh.position.y=0.14;lg.vel.y=Math.abs(lg.vel.y)*0.55;
+      lg.vel.x*=0.75;lg.vel.z*=0.75;lg.bounces++;
+    }
+    // Wall bounce
+    if(collidesWall(lg.mesh.position.x,lg.mesh.position.z)){
+      lg.vel.x*=-0.6;lg.vel.z*=-0.6;lg.bounces++;
+    }
+    const shouldExplode=lg.life<=0||lg.bounces>=3&&lg.mesh.position.y<0.3;
+    if(shouldExplode){
+      const ep=lg.mesh.position.clone();
+      spawnParticles(ep,0x88ff22,16,6);spawnParticles(ep,0xffaa00,20,7);
+      const bl=new THREE.PointLight(0xaaff44,10,14);bl.position.copy(ep);scene.add(bl);
+      setTimeout(()=>scene.remove(bl),300);SFX.explosion();
+      const ef=document.getElementById('explosion-flash');ef.style.opacity='0.45';setTimeout(()=>ef.style.opacity='0',120);
+      // Splash damage
+      const ew7=effWeapon(7);
+      for(const [pid,op] of Object.entries(otherPlayers)){
+        if(!op.group.visible)continue;
+        const d=op.group.position.distanceTo(ep);
+        if(d<WEAPONS[7].splashRadius){
+          const dmg=adminFlags.oneshot?9999:Math.round((WEAPONS[7].splashDamage+(ew7.damage-WEAPONS[7].damage))*(1-d/WEAPONS[7].splashRadius));
+          if(socket) socket.emit('shoot',{targetId:pid,damage:dmg,isHeadshot:false,weapon:7});
+        }
+      }
+      const selfDist=camera.position.distanceTo(ep);
+      if(selfDist<WEAPONS[7].splashRadius*0.8&&socket) socket.emit('self_damage',{damage:Math.round(20*(1-selfDist/(WEAPONS[7].splashRadius*0.8)))});
+      scene.remove(lg.mesh);launcherGrenades.splice(i,1);
     }
   }
 
