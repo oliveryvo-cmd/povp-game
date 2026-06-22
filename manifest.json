@@ -1,6 +1,6 @@
 {
-  "name": "UpGuns",
-  "short_name": "UpGuns",
+  "name": "UpLasers",
+  "short_name": "UpLasers",
   "description": "Online multiplayer FPS",
   "start_url": "/",
   "display": "fullscreen",

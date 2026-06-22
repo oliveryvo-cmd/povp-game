@@ -5,11 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="UpGuns">
+<meta name="apple-mobile-web-app-title" content="UpLasers">
 <meta name="theme-color" content="#000000">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon.png">
-<title>UpGuns</title>
+<title>UpLasers</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 body{background:#f0f4ff;overflow:hidden;font-family:'Courier New',monospace;cursor:none;}
@@ -404,7 +404,7 @@ canvas{display:block;}
 
 <!-- Lobby -->
 <div id="lobby-overlay">
-  <h1>UPGUNS</h1>
+  <h1>UPLASERS</h1>
   <p class="lobby-sub">UP YOUR GUNS</p>
   <div id="name-screen" style="display:flex;flex-direction:column;align-items:center;gap:14px;">
     <input id="name-input" type="text" maxlength="12" placeholder="YOUR NAME" autocomplete="off" spellcheck="false">
@@ -417,6 +417,7 @@ canvas{display:block;}
     <div id="skin-label">CHOOSE YOUR COLOR</div>
     <div id="skin-picker"></div>
     <div id="map-selector"></div>
+    <div id="mode-selector" style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin:4px 0;"></div>
     <p id="waiting-msg">WAITING FOR HOST TO START...</p>
     <button id="start-btn" class="lbtn" onclick="requestStart()" style="display:none">START GAME</button>
     <p id="controls-hint">MOUSE — AIM &nbsp;·&nbsp; CLICK/SPACE — SHOOT &nbsp;·&nbsp; R — RELOAD<br>
@@ -544,8 +545,34 @@ const MAPS=[
   {id:'arena',label:'⚔ ARENA',desc:'Classic open arena'},
   {id:'castle',label:'🏰 CASTLE',desc:'Tight corridors'},
   {id:'neon',label:'🌆 NEON CITY',desc:'Urban rooftops'},
+  {id:'space',label:'🚀 SPACE STATION',desc:'Zero gravity vibes'},
+  {id:'jungle',label:'🌿 JUNGLE',desc:'Dense foliage cover'},
 ];
 let selectedMap='arena';
+const MODES=[
+  {id:'ffa',label:'⚔ FREE FOR ALL',desc:'Every player for themselves'},
+  {id:'tdm',label:'🔴🔵 TEAM DEATHMATCH',desc:'Red vs Blue, most kills wins'},
+  {id:'ctf',label:'🚩 CAPTURE THE FLAG',desc:'Steal the enemy flag'},
+];
+let selectedMode='ffa';
+function buildModeSelector(){
+  const el=document.getElementById('mode-selector');
+  if(!el) return;
+  el.innerHTML='';
+  MODES.forEach(m=>{
+    const card=document.createElement('div');
+    card.className='map-card'+(selectedMode===m.id?' selected':'');
+    card.textContent=m.label;
+    card.title=m.desc;
+    card.onclick=()=>{
+      selectedMode=m.id;
+      document.querySelectorAll('#mode-selector .map-card').forEach(c=>c.classList.remove('selected'));
+      card.classList.add('selected');
+      SFX.mapchange();
+    };
+    el.appendChild(card);
+  });
+}
 function buildMapSelector(){
   const el=document.getElementById('map-selector');
   el.innerHTML='';
@@ -742,6 +769,55 @@ function buildMap(mapId){
     });
     // Neon ground lines
     for(let i=-3;i<=3;i++){addNeon(i*12,0.05,0,0.06,0.06,ARENA*2,0x00ffff);addNeon(0,0.05,i*12,ARENA*2,0.06,0.06,0xff00ff);}
+  } else if(mapId==='space'){
+    // Space station — metal floors, glowing blue panels, stars
+    renderer.setClearColor(0x000005);
+    scene.fog=new THREE.Fog(0x000005,40,120);
+    const metal=new THREE.MeshLambertMaterial({color:0x2a2a3e});
+    const panel=new THREE.MeshLambertMaterial({color:0x0a1a4e});
+    const floor=new THREE.Mesh(new THREE.PlaneGeometry(ARENA*2,ARENA*2),new THREE.MeshLambertMaterial({color:0x0a0a1a}));floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);mapObjects.push(floor);
+    addBox(ARENA*2,8,1,0,4,-ARENA,metal,false);addBox(ARENA*2,8,1,0,4,ARENA,metal,false);
+    addBox(1,8,ARENA*2,-ARENA,4,0,metal,false);addBox(1,8,ARENA*2,ARENA,4,0,metal,false);
+    // Metal crates and panels for cover
+    [[10,10,3,3],[-10,10,3,3],[10,-10,3,3],[-10,-10,3,3],[0,18,5,2],[0,-18,5,2],[18,0,2,5],[-18,0,2,5],[14,-6,2,4],[-14,6,2,4],[6,14,4,2],[-6,-14,4,2]].forEach(([cx,cz,ww,wd])=>{
+      if(typeof cx!=='number') return;
+      addBox(ww,3,wd,cx,1.5,cz,metal);
+      addNeon(cx,3.1,cz,ww,0.1,wd,0x0088ff);
+      coverAABBs.push({x:cx,z:cz,hw:ww/2+0.3,hd:wd/2+0.3});
+    });
+    // Blue neon grid lines on floor
+    for(let i=-3;i<=3;i++){addNeon(i*10,0.05,0,0.05,0.05,ARENA*2,0x0044ff);addNeon(0,0.05,i*10,ARENA*2,0.05,0.05,0x0044ff);}
+    // Glowing pillars
+    [[-18,-18],[18,-18],[-18,18],[18,18],[0,0]].forEach(([px,pz])=>{
+      addBox(1.5,7,1.5,px,3.5,pz,panel);
+      addNeon(px,7,pz,1.6,0.15,1.6,0x00aaff);
+    });
+    addNeon(0,6,0,0.2,0.2,0.2,0xffffff);
+  } else if(mapId==='jungle'){
+    // Jungle — green canopy, trees, ruins
+    renderer.setClearColor(0x030d02);
+    scene.fog=new THREE.Fog(0x030d02,25,80);
+    const dirt=new THREE.MeshLambertMaterial({color:0x2a1a08});
+    const bark=new THREE.MeshLambertMaterial({color:0x1a0f05});
+    const ruin=new THREE.MeshLambertMaterial({color:0x3a3020});
+    const floor=new THREE.Mesh(new THREE.PlaneGeometry(ARENA*2,ARENA*2),new THREE.MeshLambertMaterial({color:0x0d1a05}));floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);mapObjects.push(floor);
+    addBox(ARENA*2,8,1.5,0,4,-ARENA,bark,false);addBox(ARENA*2,8,1.5,0,4,ARENA,bark,false);
+    addBox(1.5,8,ARENA*2,-ARENA,4,0,bark,false);addBox(1.5,8,ARENA*2,ARENA,4,0,bark,false);
+    // Tree trunks
+    [[-12,8],[12,-8],[-8,-14],[8,14],[0,0],[-18,2],[18,-2],[5,-5],[-5,5],[15,15],[-15,-15]].forEach(([tx,tz])=>{
+      addBox(2,9,2,tx,4.5,tz,bark);
+      coverAABBs.push({x:tx,z:tz,hw:1.4,hd:1.4});
+      addNeon(tx,9,tz,4,0.3,4,0x002200);
+    });
+    // Stone ruins for cover
+    [[-15,10,6,1.5],[15,-10,6,1.5],[0,16,1.5,5],[0,-16,1.5,5],[10,5,3,3],[-10,-5,3,3]].forEach(([cx,cz,ww,wd])=>{
+      addBox(ww,2,wd,cx,1,cz,ruin);
+      coverAABBs.push({x:cx,z:cz,hw:ww/2+0.3,hd:wd/2+0.3});
+    });
+    // Glowing mushrooms as light sources
+    [[-6,6],[6,-6],[-16,-6],[16,6],[0,-10],[0,10]].forEach(([mx,mz])=>{
+      addNeon(mx,0.3,mz,0.4,0.6,0.4,0x00ff44);
+    });
   } else {
     // Default arena
     renderer.setClearColor(0x1a2030);
@@ -1118,7 +1194,7 @@ function connectLobby(){
     document.getElementById('name-screen').style.display='none';
     document.getElementById('waiting-room').style.display='flex';
     document.getElementById('start-btn').style.display=host?'block':'none';
-    buildSkinPicker(); buildMapSelector();
+    buildSkinPicker(); buildMapSelector(); buildModeSelector();
     for(const [pid,p] of Object.entries(players)) if(pid!==myId) addOtherPlayer(p);
     scoreData=Object.values(players);renderPlayerList(players);updatePlayerCount();
     pus.forEach(pu=>spawnPowerUpMesh(pu));
